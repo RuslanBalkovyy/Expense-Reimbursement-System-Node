@@ -1,0 +1,27 @@
+{
+  "name": "foundationrevature",
+  "version": "1.0.0",
+  "description": "This is your first individual project at Revature. You are tasked with creating a ticketing reimbursement system for a company. To have an idea of what is expected of you, watch the following below:",
+  "homepage": "https://github.com/RuslanBalkovyy/FoundationRevature#readme",
+  "bugs": {
+    "url": "https://github.com/RuslanBalkovyy/FoundationRevature/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RuslanBalkovyy/FoundationRevature.git"
+  },
+  "license": "ISC",
+  "author": "Ruslan B",
+  "type": "commonjs",
+  "main": "app.js",
+  "scripts": {
+    "test": "jest --coverage"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
