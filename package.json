@@ -18,8 +18,11 @@
     "test": "jest --coverage"
   },
   "dependencies": {
-    "aws-sdk": "^2.1692.0",
+    "@aws-sdk/client-dynamodb": "^3.758.0",
+    "@aws-sdk/lib-dynamodb": "^3.758.0",
     "express": "^4.21.2",
+    "joi": "^17.13.3",
+    "uuid": "^11.1.0",
     "winston": "^3.17.0"
   },
   "devDependencies": {
