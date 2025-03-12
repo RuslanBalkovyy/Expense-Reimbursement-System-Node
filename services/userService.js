@@ -40,13 +40,13 @@ async function registration(user) {
         const createdUser = await createUser(user);
 
 
-        logger.info(`User "${user.username}" created successfully with ID: ${user.user_id}`);
+        logger.info(`User "${createdUser.username}" created successfully with ID: ${createdUser.user_id}`);
         return {
             success: true,
             user: {
-                username: user.username,
-                role: user.role,
-                user_id: user.user_id
+                username: createdUser.username,
+                role: createdUser.role,
+                user_id: createdUser.user_id
             }
         };
     } catch (error) {
@@ -59,13 +59,6 @@ async function registration(user) {
 async function login(user) {
     try {
 
-        if (!user.username || !user.password) {
-            return {
-                success: false,
-                error: "Username and password are required."
-            };
-        }
-
         const userFromDB = await getUserByUsername(user.username);
         if (!userFromDB) {
             logger.error(`User with username ${user.username} doesn't exist.`);
@@ -74,7 +67,6 @@ async function login(user) {
                 error: "No such username in database."
             };
         }
-
 
         const matchPass = await bcrypt.compare(user.password, userFromDB.password);
 
@@ -100,3 +92,5 @@ async function login(user) {
         return { success: false, error: "An unexpected error occurred during login." };
     }
 }
+
+module.exports = { registration, login };

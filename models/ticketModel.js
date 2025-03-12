@@ -117,3 +117,7 @@ async function getAllTicketsForAdmin() {
         return null;
     }
 }
+
+module.exports = {
+    createTicket, getTicket, getAllTicketsByStatus, getAllTicketsByUserId, getAllTicketsForAdmin, updateTicket
+}
