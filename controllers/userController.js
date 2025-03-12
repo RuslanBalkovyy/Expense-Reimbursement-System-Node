@@ -36,7 +36,10 @@ const userLogin = async (req, res) => {
             logger.error("Login failed: Username and password don't match.");
             return res.status(401).json({ error: response.error });
         }
-        return res.status(200).json(response.user);
+        return res.status(200).json({
+            user: response.user,
+            token: response.token
+        });
     } catch (error) {
         logger.error(`Unexpected error occured during login: ${error.message}`);
         res.status(500).json({ error: "An unexpected error occured during login", message: error.message });

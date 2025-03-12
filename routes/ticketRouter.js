@@ -1,16 +1,14 @@
 const express = require('express');
+const { submitTicket, getPendingTickets, processTickets, viewTicketsAsEmployee } = require("../controllers/ticketController");
 const router = express.Router();
 
-router.get("/", (res, req) => {
-    //TODO controller call
-});
 
-router.post("/", (res, req) => {
-    //TODO controller call
-});
+router.get("/pending", getPendingTickets);
 
-router.post("/:ticketId", (req, res) => {
-    //TODO controller call
-})
+router.get("/history", viewTicketsAsEmployee);
+
+router.post("/", submitTicket);
+
+router.post("/:ticketId", processTickets);
 
 module.exports = router;

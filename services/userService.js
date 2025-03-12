@@ -3,6 +3,9 @@ const { createUser, getUserByUsername } = require('../models/userModel');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const Joi = require('joi');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
+const SECRET_KEY = process.env.SECRET_KEY;
 
 
 const schema = Joi.object({
@@ -72,10 +75,21 @@ async function login(user) {
 
         if (matchPass) {
             logger.info(`User "${user.username}" logged in successfully.`);
+
+            const token = jwt.sign(
+                {
+                    user_id: userFromDB.user_id,
+                    username: userFromDB.username,
+                    role: userFromDB.role
+                }, // Payload
+                SECRET_KEY,
+                { expiresIn: '1h' }
+            );
             const { password, ...safeUserData } = userFromDB;
             return {
                 success: true,
-                user: safeUserData
+                user: safeUserData,
+                token
             };
         }
         else {

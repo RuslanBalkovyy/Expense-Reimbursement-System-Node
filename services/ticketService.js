@@ -149,6 +149,13 @@ async function viewTicketsAsEmployee(user_id) {
         logger.error(`Error retrieving tickets for user ID ${user_id}: ${error.message}`, error);
         return { success: false, error: "An unexpected error occurred while retrieving tickets." };
 
-    }
+    };
 
-}
+};
+
+module.exports = {
+    submitTicket,
+    getPendingTickets,
+    processTicket,
+    viewTicketsAsEmployee
+};
