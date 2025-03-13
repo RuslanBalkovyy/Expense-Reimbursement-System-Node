@@ -29,5 +29,20 @@
   },
   "devDependencies": {
     "jest": "^29.7.0"
+  },
+
+  "jest": {
+    "coveragePathIgnorePatterns": [
+    "/node_modules/",
+    "/images/",
+    "/__test__/",
+    "/.vscode/",
+    "/src/util/",
+    "db.js",
+    "logger.js",
+    "/.gitignore",
+    "/package-lock.json",
+    "/README.md"
+    ]
   }
 }
