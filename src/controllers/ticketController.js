@@ -14,7 +14,7 @@ const schema = Joi.object({
 const ticketValidation = (ticket) => {
     const { error, value } = schema.validate(ticket);
     if (error) {
-        logger.error(`Ticket validation failed: ${error.details[0].message}`);
+        logger.warn(`Ticket validation failed: ${error.details[0].message}`);
         return { success: false, error: error.details[0].message };
     }
     logger.info("Ticket validation passed.");
@@ -27,14 +27,14 @@ const submitTicket = async (req, res) => {
     const ticket = req.body;
     const validation = ticketValidation(ticket);
     if (!validation.success) {
-        logger.error(`Ticket submission failed: ${validation.error}`);
+        logger.warn(`Ticket submission failed: ${validation.error}`);
         return res.status(400).json({ success: false, error: validation.error });
     }
 
     try {
         const response = await submitTicket(ticket, req.user.user_id);
         if (!response.success) {
-            logger.error(`Failed to submit ticket for user ID: ${req.user.user_id}. Error: ${response.error}`);
+            logger.warn(`Failed to submit ticket for user ID: ${req.user.user_id}. Error: ${response.error}`);
             return res.status(400).json({ success: false, error: response.error });
         };
 
@@ -51,7 +51,7 @@ const getPendingTicketsList = async (req, res) => {
     try {
         const response = await getPendingTickets();
         if (!response.success) {
-            logger.error(`Failed to fetch pending tickets. Error: ${response.error}`);
+            logger.warn(`Failed to fetch pending tickets. Error: ${response.error}`);
             return res.status(400).json({ success: false, error: response.error });
         }
 
@@ -75,7 +75,7 @@ const processTickets = async (req, res) => {
     try {
         const response = await processTicket(req.params.ticketId, req.body.action);
         if (!response.success) {
-            logger.error(`Failed to process ticket ${ticketId}. Error: ${response.error}`);
+            logger.warn(`Failed to process ticket ${ticketId}. Error: ${response.error}`);
             return res.status(400).json({ success: false, error: response.error });
         }
         logger.info(`Ticket ${ticketId} processed successfully. Action: ${action}`);
@@ -92,7 +92,7 @@ const viewHistory = async (req, res) => {
         const response = await viewTicketsAsEmployee(req.user.user_id);
 
         if (!response.success) {
-            logger.error(`Failed to fetch ticket history for user ID: ${req.user.user_id}. Error: ${response.error}`);
+            logger.warn(`Failed to fetch ticket history for user ID: ${req.user.user_id}. Error: ${response.error}`);
             return res.status(400).json({ success: false, error: response.error });
         }
         logger.info(`Ticket history fetched successfully for user ID: ${req.user.user_id}`);

@@ -1,4 +1,3 @@
-logger.info(`User "${user.username}" logged in successfully.`);
 const { createTicket, getTicket, getAllTicketsByStatus,
     getAllTicketsByUserId, getAllTicketsForAdmin, updateTicket
 } = require('../models/ticketModel');
@@ -11,7 +10,7 @@ async function submitTicket(ticket, user_id) {
     try {
         const user = await getUser(user_id);
         if (!user) {
-            logger.error(`User with ID ${user_id} does not exist.`);
+            logger.warn(`User with ID ${user_id} does not exist.`);
             return { success: false, error: "User does not exist." };
         };
 
@@ -55,7 +54,7 @@ async function getPendingTickets() {
         const tickets = await getAllTicketsByStatus("Pending");
 
         if (!tickets || tickets.length === 0) {
-            logger.info("No pending tickets found.");
+            logger.warn("No pending tickets found.");
             return { success: false, error: "No pending tickets available for processing." };
         }
 
@@ -73,7 +72,7 @@ async function getPendingTickets() {
 async function processTicket(ticket_id, action) {
     const validActions = ["Approved", "Denied"];
     if (!validActions.includes(action)) {
-        logger.error(`Invalid action "${action}" for ticket ${ticket_id}.`);
+        logger.warn(`Invalid action "${action}" for ticket ${ticket_id}.`);
         return { success: false, error: "Invalid action. Tickets can only be Approved or Denied." };
     }
 
@@ -81,7 +80,7 @@ async function processTicket(ticket_id, action) {
     let ticket = await getTicket(ticket_id);
 
     if (!ticket || ticket.status !== "Pending") {
-        logger.error(`Cannot process ticket ${ticket_id}. Status: ${ticket ? ticket.status : "Not Found"}`);
+        logger.warn(`Cannot process ticket ${ticket_id}. Status: ${ticket ? ticket.status : "Not Found"}`);
         return { success: false, error: "Ticket cannot be processed. Either it does not exist or it is already processed." };
     }
 
@@ -100,13 +99,13 @@ async function viewTicketsAsEmployee(user_id) {
     try {
         const user = await getUser(user_id);
         if (!user) {
-            logger.error(`User with ID ${user_id} does not exist.`);
+            logger.warn(`User with ID ${user_id} does not exist.`);
             return { success: false, error: "User does not exist." };
         }
         const tickets = await getAllTicketsByUserId(user_id);
 
         if (!tickets || tickets.length === 0) {
-            logger.info(`No tickets found for user ID ${user_id}.`);
+            logger.warn(`No tickets found for user ID ${user_id}.`);
             return { success: false, message: "No previous tickets found." };
         };
 

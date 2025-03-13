@@ -14,7 +14,7 @@ const schema = Joi.object({
 const creadentialsValidation = (user) => {
     const { error, value } = schema.validate(user);
     if (error) {
-        logger.error(`Error while validationg credentials: ${error.details[0].message}`);
+        logger.warn(`Error while validationg credentials: ${error.details[0].message}`);
         return { success: false, error: error.details[0].message };;
     } else {
         logger.info("Validation passed");
@@ -26,13 +26,13 @@ const userRegistration = async (req, res) => {
     try {
         const validation = creadentialsValidation(req.body);
         if (!validation.success) {
-            logger.error(`Registration failed: ${validation.error}`);
+            logger.warn(`Registration failed: ${validation.error}`);
             return res.status(400).json({ success: false, error: validation.error });
         };
 
         const response = await registration(req.body);
         if (!response.success) {
-            logger.error(`Registration failed for username ${username}: ${response.error}`);
+            logger.warn(`Registration failed for username ${username}: ${response.error}`);
             return res.status(400).json({ success: false, error: response.error });
         }
 
@@ -48,13 +48,13 @@ const userLogin = async (req, res) => {
     try {
         const validation = creadentialsValidation(req.body);
         if (!validation.success) {
-            logger.error(`Login failed: ${validation.error}`);
+            logger.warn(`Login failed: ${validation.error}`);
             return res.status(400).json({ success: false, error: validation.error });
         };
 
         const response = await login(req.body);
         if (!response.success) {
-            logger.error("Login failed: Username and password don't match.");
+            logger.warn("Login failed: Username and password don't match.");
             return res.status(401).json({ success: false, error: response.error });
         }
         return res.status(200).json({

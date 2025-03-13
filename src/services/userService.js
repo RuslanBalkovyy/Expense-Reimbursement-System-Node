@@ -13,7 +13,7 @@ async function registration(user) {
         const existingUser = await getUserByUsername(user.username);
 
         if (existingUser) {
-            logger.error(`Username "${user.username}" already exists in the database.`);
+            logger.warn(`Username "${user.username}" already exists in the database.`);
             return { success: false, error: "Username already exists." };
         }
         user.user_id = uuidv4();
@@ -21,7 +21,6 @@ async function registration(user) {
 
         const hashedPassword = await bcrypt.hash(user.password, 10);
         user.password = hashedPassword;
-
 
         const createdUser = await createUser(user);
 
@@ -47,7 +46,7 @@ async function login(user) {
 
         const userFromDB = await getUserByUsername(user.username);
         if (!userFromDB) {
-            logger.error(`User with username ${user.username} doesn't exist.`);
+            logger.warn(`User with username ${user.username} doesn't exist.`);
             return {
                 success: false,
                 error: "No such username in database."
@@ -76,7 +75,7 @@ async function login(user) {
             };
         }
         else {
-            logger.error(`User login failed. Username: ${user.username}. Reason: Password doesn't match.`);
+            logger.warn(`User login failed. Username: ${user.username}. Reason: Password doesn't match.`);
             return {
                 success: false,
                 error: "Password doesn't match."

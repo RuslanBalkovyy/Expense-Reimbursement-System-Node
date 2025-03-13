@@ -12,6 +12,7 @@ async function createTicket(ticket) {
 
     try {
         await documentClient.send(command);
+        logger.info(`Ticket successfully created.`)
         return ticket;
     } catch (error) {
         logger.error(`Error while creating ticket`, error);
@@ -27,6 +28,7 @@ async function getTicket(ticket_id) {
 
     try {
         const data = await documentClient.send(command);
+        logger.info(`Retrieved ticket with id ${ticket_id}`);
         return data.Item;
     } catch (error) {
         logger.error(`Error retrieving ticket ${ticket_id}`, error);
