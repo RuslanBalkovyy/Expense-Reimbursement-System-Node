@@ -3,15 +3,8 @@ const { createTicket, getTicket, getAllTicketsByStatus,
     getAllTicketsByUserId, getAllTicketsForAdmin, updateTicket
 } = require('../models/ticketModel');
 const { v4: uuidv4 } = require('uuid');
-const Joi = require('joi');
 const { getUser } = require('../models/userModel');
 
-
-const schema = Joi.object({
-    user_id: Joi.string().required(),
-    amount: Joi.number().min(0).required(),
-    description: Joi.string().min(5).required()
-})
 
 
 async function submitTicket(ticket, user_id) {
@@ -22,14 +15,8 @@ async function submitTicket(ticket, user_id) {
             return { success: false, error: "User does not exist." };
         };
 
-        const { error, value } = schema.validate(ticket);
-        if (error) {
-            logger.error(`Ticket validation failed: ${error.details[0].message}`);
-            return { success: false, error: error.details[0].message };
-        }
-        logger.info("Ticket validation passed.");
 
-        const validatedTicket = value;
+        const validatedTicket = ticket;
         validatedTicket.ticket_id = uuidv4();
         validatedTicket.status = "Pending";
         validatedTicket.user_id = user_id;
@@ -63,15 +50,8 @@ async function submitTicket(ticket, user_id) {
     }
 }
 
-async function getPendingTickets(user_id) {
-    //possebly will move to auth module later
+async function getPendingTickets() {
     try {
-        const authUser = await getUser(user_id);
-        if (!authUser || authUser.role !== "Manager") {
-            logger.error(`Access denied for user ${user_id}. Role: ${authUser ? authUser.role : "Unknown"}`);
-            return { success: false, error: "Permission denied. Only managers can view pending tickets." };
-        }
-
         const tickets = await getAllTicketsByStatus("Pending");
 
         if (!tickets || tickets.length === 0) {

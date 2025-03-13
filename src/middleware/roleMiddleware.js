@@ -11,3 +11,9 @@ const authorizeRole = (requiredRole) => {
 };
 
 module.exports = authorizeRole;
+
+
+// if (!authUser || authUser.role !== "Manager") {
+//     logger.error(`Access denied for user ${user_id}. Role: ${authUser ? authUser.role : "Unknown"}`);
+//     return { success: false, error: "Permission denied. Only managers can view pending tickets." };
+// }
