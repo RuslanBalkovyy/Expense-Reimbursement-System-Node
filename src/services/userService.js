@@ -17,7 +17,7 @@ async function registration(user) {
             return { success: false, error: "Username already exists." };
         }
         user.user_id = uuidv4();
-        user.role = "employee";
+        user.role = "Employee";
 
         const hashedPassword = await bcrypt.hash(user.password, 10);
         user.password = hashedPassword;

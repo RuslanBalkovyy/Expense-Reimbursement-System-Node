@@ -25,6 +25,7 @@ const authenticateToken = (req, res, next) => {
         };
         logger.info("Authentification successful");
         req.user = user;
+        next();
     });
 
 };

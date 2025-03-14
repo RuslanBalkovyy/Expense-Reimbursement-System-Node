@@ -3,6 +3,7 @@ const { createTicket, getTicket, getAllTicketsByStatus,
 } = require('../models/ticketModel');
 const { v4: uuidv4 } = require('uuid');
 const { getUser } = require('../models/userModel');
+const { logger } = require('../util/logger');
 
 
 
@@ -106,7 +107,7 @@ async function viewTicketsAsEmployee(user_id) {
 
         if (!tickets || tickets.length === 0) {
             logger.warn(`No tickets found for user ID ${user_id}.`);
-            return { success: false, message: "No previous tickets found." };
+            return { success: false, error: "No previous tickets found." };
         };
 
         logger.info(`${tickets.length} ticket(s) retrieved for user ID ${user_id}.`);

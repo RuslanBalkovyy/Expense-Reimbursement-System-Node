@@ -1,3 +1,5 @@
+const { logger } = require('../util/logger');
+
 const authorizeRole = (requiredRole) => {
     return (req, res, next) => {
         const user = req.user;

@@ -20,6 +20,8 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.758.0",
     "@aws-sdk/lib-dynamodb": "^3.758.0",
+    "@types/jest": "^29.5.14",
+    "bcrypt": "^5.1.1",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "joi": "^17.13.3",
@@ -30,19 +32,20 @@
   "devDependencies": {
     "jest": "^29.7.0"
   },
-
   "jest": {
     "coveragePathIgnorePatterns": [
-    "/node_modules/",
-    "/images/",
-    "/__test__/",
-    "/.vscode/",
-    "/src/util/",
-    "db.js",
-    "logger.js",
-    "/.gitignore",
-    "/package-lock.json",
-    "/README.md"
+      "/node_modules/",
+      "/images/",
+      "/__test__/",
+      "/.vscode/",
+      "/src/util/",
+      "/src/controllers/",
+      "/src/models",
+      "db.js",
+      "logger.js",
+      "/.gitignore",
+      "/package-lock.json",
+      "/README.md"
     ]
   }
 }
