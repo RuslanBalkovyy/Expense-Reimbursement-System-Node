@@ -15,7 +15,8 @@
   "type": "commonjs",
   "main": "app.js",
   "scripts": {
-    "test": "jest --coverage"
+    "test": "jest --coverage",
+    "start": "node app.js"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.758.0",

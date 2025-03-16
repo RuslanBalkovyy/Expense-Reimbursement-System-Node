@@ -60,7 +60,6 @@ describe("registration", () => {
 });
 
 describe("login", () => {
-    //TODO
 
     const mockUser = { username: "username", password: "Password" };
 

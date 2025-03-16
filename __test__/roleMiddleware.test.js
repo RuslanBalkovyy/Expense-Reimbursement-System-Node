@@ -2,7 +2,6 @@ const authorizeRole = require("../src/middleware/roleMiddleware");
 
 
 describe("Role middleware testing", () => {
-    //TODO
 
     let req, res, next;
 

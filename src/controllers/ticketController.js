@@ -6,7 +6,6 @@ const { submitTicket,
 const Joi = require('joi');
 
 const schema = Joi.object({
-    user_id: Joi.string().required(),
     amount: Joi.number().min(0).required(),
     description: Joi.string().min(5).required()
 })
@@ -22,7 +21,7 @@ const ticketValidation = (ticket) => {
 
 };
 
-const submitTicket = async (req, res) => {
+const ticketSubmit = async (req, res) => {
 
     const ticket = req.body;
     const validation = ticketValidation(ticket);
@@ -104,7 +103,7 @@ const viewHistory = async (req, res) => {
 };
 
 module.exports = {
-    submitTicket,
+    ticketSubmit,
     getPendingTicketsList,
     processTickets,
     viewHistory

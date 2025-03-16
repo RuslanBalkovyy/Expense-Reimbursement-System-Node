@@ -2,10 +2,10 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 const PORT = 3000;
-const loggerMiddleware = require("./middleware/loggingMiddleware");
-const authenticateToken = require("./middleware/authMiddleware");
-const ticketRouter = require("./routes/ticketRouter");
-const userRouter = require("./routes/userRouter");
+const loggerMiddleware = require("./src/middleware/loggingMiddleware");
+const authenticateToken = require("./src/middleware/authMiddleware");
+const ticketRouter = require("./src/routes/ticketRouter");
+const userRouter = require("./src/routes/userRouter");
 
 app.use(loggerMiddleware);
 

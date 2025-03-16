@@ -72,21 +72,22 @@ async function getPendingTickets() {
 
 async function processTicket(ticket_id, action) {
     const validActions = ["Approved", "Denied"];
-    if (!validActions.includes(action)) {
-        logger.warn(`Invalid action "${action}" for ticket ${ticket_id}.`);
-        return { success: false, error: "Invalid action. Tickets can only be Approved or Denied." };
-    }
-
-
-    let ticket = await getTicket(ticket_id);
-
-    if (!ticket || ticket.status !== "Pending") {
-        logger.warn(`Cannot process ticket ${ticket_id}. Status: ${ticket ? ticket.status : "Not Found"}`);
-        return { success: false, error: "Ticket cannot be processed. Either it does not exist or it is already processed." };
-    }
-
-
     try {
+        if (!validActions.includes(action)) {
+            logger.warn(`Invalid action "${action}" for ticket ${ticket_id}.`);
+            return { success: false, error: "Invalid action. Tickets can only be Approved or Denied." };
+        }
+
+
+        let ticket = await getTicket(ticket_id);
+
+        if (!ticket || ticket.status !== "Pending") {
+            logger.warn(`Cannot process ticket ${ticket_id}. Status: ${ticket ? ticket.status : "Not Found"}`);
+            return { success: false, error: "Ticket cannot be processed. Either it does not exist or it is already processed." };
+        }
+
+
+
         const response = await updateTicket(ticket_id, action);
         logger.info(`Ticket ${ticket_id} processed successfully. Action: ${action}`);
         return { success: true, ticket: response };
