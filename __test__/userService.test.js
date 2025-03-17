@@ -11,7 +11,9 @@ jest.mock('uuid', () => ({
 jest.mock('bcrypt');
 jest.mock("jsonwebtoken")
 
-
+//TODO add tests for changing roles
+//TODO add tests for account showing
+//TODO add tests for acount details changing
 
 describe("registration", () => {
     const mockUser = { user_id: 1, username: "username", password: "password", role: "Employee" };

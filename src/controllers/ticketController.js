@@ -7,7 +7,8 @@ const Joi = require('joi');
 
 const schema = Joi.object({
     amount: Joi.number().min(0).required(),
-    description: Joi.string().min(5).required()
+    description: Joi.string().min(5).required(),
+    type: Joi.string().valid("Travel", "Lodging", "Food", "Other").required()
 })
 
 const ticketValidation = (ticket) => {
@@ -72,7 +73,7 @@ const getPendingTicketsList = async (req, res) => {
 
 const processTickets = async (req, res) => {
     try {
-        const response = await processTicket(req.params.ticketId, req.body.action);
+        const response = await processTicket(req.params.ticketId, req.body.action, req.user.user_id);
         if (!response.success) {
             logger.warn(`Failed to process ticket ${ticketId}. Error: ${response.error}`);
             return res.status(400).json({ success: false, error: response.error });
@@ -88,7 +89,16 @@ const processTickets = async (req, res) => {
 
 const viewHistory = async (req, res) => {
     try {
-        const response = await viewTicketsAsEmployee(req.user.user_id);
+
+        const { type } = req.query;
+        const typeValidation = ["Travel", "Lodging", "Food", "Other"];
+
+        if (type && !ticketValidation.includes(type)) {
+            logger.warn(`Reimbursement type sould be one of:${typeValidation}`)
+            return res.status(400).json({ success: false, error: "Invalid reimbursement type." });
+        }
+
+        const response = await viewTicketsAsEmployee(req.user.user_id, type);
 
         if (!response.success) {
             logger.warn(`Failed to fetch ticket history for user ID: ${req.user.user_id}. Error: ${response.error}`);
@@ -101,6 +111,7 @@ const viewHistory = async (req, res) => {
         return res.status(500).json({ success: false, error: "An unexpected error occurred while fetching ticket history." });
     };
 };
+
 
 module.exports = {
     ticketSubmit,

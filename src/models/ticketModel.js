@@ -63,12 +63,15 @@ async function getAllTicketsByUserId(user_id) {
 
     const command = new ScanCommand({
         TableName: "Tickets",
-        FilterExpression: "user_id = :user_id",
+        FilterExpression: "#user_id = :user_id",
+        ExpressionAttributeNames: {
+            "#user_id": "user_id"
+        },
         ExpressionAttributeValues: {
             ':user_id': user_id
         }
 
-    })
+    });
 
     try {
         const response = await documentClient.send(command);
@@ -79,11 +82,40 @@ async function getAllTicketsByUserId(user_id) {
         return null;
     }
 }
+
+async function getAllTicketsByUserIdAndType(user_id, type) {
+    const command = new ScanCommand({
+        TableName: "Tickets",
+        FilterExpression: "#user_id = :user_id AND #type = :type",
+        ExpressionAttributeValues: {
+            ':user_id': user_id,
+            ':type': type
+        },
+        ExpressionAttributeNames: {
+            "#type": "type",
+            "#user_id": "user_id"
+        }
+    });
+
+    try {
+        const response = await documentClient.send(command);
+        logger.info(`Retrieved ${response.Count} tickets for user ID: ${user_id} with type:${type}`);
+        return response.Items;
+    } catch (error) {
+        logger.error(`Error retrieving tickets for user ID: ${user_id} with type:${type}`, error);
+        return null;
+    }
+
+}
+
 async function getAllTicketsByStatus(status) {
 
     const command = new ScanCommand({
         TableName: "Tickets",
-        FilterExpression: "status = :status",
+        FilterExpression: "#status = :status",
+        ExpressionAttributeNames: {
+            '#status': 'status'
+        },
         ExpressionAttributeValues: {
             ':status': status
         }
@@ -100,26 +132,46 @@ async function getAllTicketsByStatus(status) {
         logger.error(`Error getting all tickets with status ${status}`, error);
         return null;
     }
-}
-async function getAllTicketsForAdmin() {
+};
 
-    const command = new ScanCommand({
-        TableName: "Tickets"
 
+async function updateUser(user_id, data) {
+
+    let updateExpression = "SET";
+    const ExpressionAttributeNames = {};
+    const ExpressionAttributeValues = {};
+
+    Object.keys(data).forEach((key, index) => {
+        const attributeKey = `#key${index}`;
+        const attributeValue = `:value${index}`;
+        updateExpression += ` ${attributeKey} = ${attributeValue},`;
+        ExpressionAttributeNames[attributeKey] = key;
+        ExpressionAttributeValues[attributeValue] = updatedData[key];
+    });
+
+    updateExpression = updateExpression.slice(0, -1);
+
+
+    const command = new UpdateCommand({
+        TableName: "Users",
+        Key: { user_id },
+        UpdateExpression: updateExpression,
+        ExpressionAttributeNames,
+        ExpressionAttributeValues,
+        ReturnValues: "ALL_NEW"
     })
-
     try {
 
         const response = await documentClient.send(command);
-        logger.info(`Retrieved all tickets`);
-        return response.Items;
+        logger.info(`User updated`);
+        return response.Attributes;
 
     } catch (error) {
-        logger.error(`Error retrieving all tickets`, error);
+        logger.error(`Error while updating user details`, error);
         return null;
     }
 }
 
 module.exports = {
-    createTicket, getTicket, getAllTicketsByStatus, getAllTicketsByUserId, getAllTicketsForAdmin, updateTicket
-}
+    createTicket, getTicket, getAllTicketsByStatus, getAllTicketsByUserId, updateTicket, getAllTicketsByUserIdAndType, updateUser
+};

@@ -1,6 +1,7 @@
 const { logger } = require("../util/logger");
-const { registration, login } = require("../services/userService");
+const { registration, login, changeUserRole, updateAccount } = require("../services/userService");
 const Joi = require('joi');
+const { getUser } = require("../models/userModel");
 
 const schema = Joi.object({
     username: Joi.string().min(3).max(16).required(),
@@ -10,6 +11,17 @@ const schema = Joi.object({
             "string.pattern.base": "Password must include number."
         })
 });
+
+const profileSchema = Joi.object({
+    name: Joi.string,
+    address: Joi.object({
+        street: Joi.string().optional(),
+        city: Joi.string().optional(),
+        state: Joi.string().optional(),
+        zip: Joi.string().pattern(/^\d{5}$/).optional()
+    }).optional(),
+    profile_picture: Joi.string().uri().optional()
+})
 
 const creadentialsValidation = (user) => {
     const { error, value } = schema.validate(user);
@@ -57,6 +69,7 @@ const userLogin = async (req, res) => {
             logger.warn("Login failed: Username and password don't match.");
             return res.status(401).json({ success: false, error: response.error });
         }
+        logger.info(`User ${response.user.user_id} succesfully logen in.`)
         return res.status(200).json({
             success: true,
             user: response.user,
@@ -66,9 +79,90 @@ const userLogin = async (req, res) => {
         logger.error(`Unexpected error occured during login: ${error.message}`);
         res.status(500).json({ success: false, error: "An unexpected error occured during login" });
     }
-
 }
 
 
+const changeRole = async (req, res) => {
 
-module.exports = { userLogin, userRegistration };
+
+    try {
+        const response = await changeUserRole(req.param.user_id, req.body.role);
+
+        if (!response.success) {
+            logger.warn(`Error during updating role: ${response.error}`);
+            return res.status(400).json({ success: false, error: response.error });
+        };
+
+        logger.info(`Role for user ${req.param.user_id} is succesfully changed to ${req.body.role}.`);
+        return res.status(200).json({
+            success: true,
+            role: response.role
+        });
+
+    } catch (error) {
+        logger.error(`Unexpected error occured during login: ${error.message}`);
+        res.status(500).json({ success: false, error: "An unexpected error occured during login" });
+    }
+
+}
+
+const getUserAccount = async (req, res) => {
+    try {
+        const user = await getUser(req.user.user_id);
+        if (!user) {
+            info.warn(`No user with id ${req.user.user_id}`);
+            return res.status(400).json({
+                succes: false,
+                error: "No user found"
+            })
+        }
+
+        logger.info();//TODO fill logger
+        return res.statuf(200).json({
+            succes: true,
+            user: user
+        })
+
+
+    } catch (error) {
+        logger.error(`Unexpected error occured during retrieving user's account: ${error.message}`);
+        res.status(500).json({ success: false, error: "An unexpected error occured during retrieving user's account" });
+    }
+
+}
+
+const updateUserAccount = async (req, res) => {
+    //TODO
+
+
+    try {
+        //gather and validate all data
+
+        const { error, value } = profileSchema.validate(req.body);
+        if (error) {
+            return res.status(400).json({ success: false, error: error.details[0].message });
+        };
+
+        const response = await updateAccount(req.user.user_id, value);
+        if (!response.succes) {
+            logger.warn();
+            return res.status(400).json({
+                success: false,
+                error: response.error
+            });
+        };
+
+        logger.info();//TODO fill logger
+
+        return res.status(200).json({
+            succes: true,
+            message: "Profile updated succesfully"
+        });
+
+    } catch (error) {
+        logger.error("Unexpected error while updating user profile");
+        return res.status(500).json("Unexpected server error while updating user profile");
+    }
+}
+
+module.exports = { userLogin, userRegistration, changeRole, getUserAccount, updateUserAccount };

@@ -14,6 +14,7 @@ jest.mock('uuid', () => ({
     v4: jest.fn(() => 'mocked-uuid'),
 }));
 
+
 describe("submitTicket", () => {
 
     const mockTicket = { amount: 300, description: "test description" };
@@ -100,7 +101,7 @@ describe("getPendingTicket", () => {
 });
 
 describe("processTicket", () => {
-
+    //FIXME add user id to the request and new test case for trying to process own ticket 
     test("should return success:false, invatil action", async () => {
         const response = await processTicket(1, "Pending");
         expect(response).toMatchObject({ success: false, error: "Invalid action. Tickets can only be Approved or Denied." });
@@ -144,7 +145,7 @@ describe("processTicket", () => {
 });
 
 describe("viewTicketAsEmployee", () => {
-
+    //TODO add cases for filtering by type 
     test("should return success:false, error:user not exist", async () => {
         getUser.mockResolvedValue(null);
 

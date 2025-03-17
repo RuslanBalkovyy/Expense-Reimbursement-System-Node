@@ -1,5 +1,5 @@
 const { createTicket, getTicket, getAllTicketsByStatus,
-    getAllTicketsByUserId, getAllTicketsForAdmin, updateTicket
+    getAllTicketsByUserId, getAllTicketsByUserIdAndType, updateTicket
 } = require('../models/ticketModel');
 const { v4: uuidv4 } = require('uuid');
 const { getUser } = require('../models/userModel');
@@ -70,9 +70,11 @@ async function getPendingTickets() {
 
 }
 
-async function processTicket(ticket_id, action) {
-    const validActions = ["Approved", "Denied"];
+async function processTicket(ticket_id, action, user_id) {
+
     try {
+
+        const validActions = ["Approved", "Denied"];
         if (!validActions.includes(action)) {
             logger.warn(`Invalid action "${action}" for ticket ${ticket_id}.`);
             return { success: false, error: "Invalid action. Tickets can only be Approved or Denied." };
@@ -84,6 +86,10 @@ async function processTicket(ticket_id, action) {
         if (!ticket || ticket.status !== "Pending") {
             logger.warn(`Cannot process ticket ${ticket_id}. Status: ${ticket ? ticket.status : "Not Found"}`);
             return { success: false, error: "Ticket cannot be processed. Either it does not exist or it is already processed." };
+        }
+        if (ticket.user_id == user_id) {
+            logger.warn(`Cannot process ticket ${ticket_id}. Processing own ticket is not allowed`);
+            return { success: false, error: "Ticket cannot be processed. Not allowed to process own ticket." };
         }
 
 
@@ -97,14 +103,20 @@ async function processTicket(ticket_id, action) {
     }
 }
 
-async function viewTicketsAsEmployee(user_id) {
+async function viewTicketsAsEmployee(user_id, type) {
     try {
         const user = await getUser(user_id);
         if (!user) {
             logger.warn(`User with ID ${user_id} does not exist.`);
             return { success: false, error: "User does not exist." };
         }
-        const tickets = await getAllTicketsByUserId(user_id);
+
+        let tickets = null;
+        if (type) {
+            tickets = await getAllTicketsByUserIdAndType(user_id, type);
+        } else {
+            tickets = await getAllTicketsByUserId(user_id);
+        }
 
         if (!tickets || tickets.length === 0) {
             logger.warn(`No tickets found for user ID ${user_id}.`);
