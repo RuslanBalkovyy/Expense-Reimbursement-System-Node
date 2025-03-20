@@ -1,30 +1,44 @@
 const { logger } = require('../util/logger');
-const { createUser, getUserByUsername, getUser, updateUserRole } = require('../models/userModel');
+const { createUser, getUserByUsername, getUser, updateUser } = require('../models/reimbursmentModel');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const jwt = require('jsonwebtoken');
-const { updateUser } = require('../models/ticketModel');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+
 require('dotenv').config();
 const SECRET_KEY = process.env.SECRET_KEY;
+const REGION = process.env.AWS_DEFAULT_REGION;
+const BUCKET_NAME = process.env.S3_BUCKET_NAME;
+const s3 = new S3Client({ region: REGION });
 
 
 async function registration(user) {
+
     try {
-
         const existingUser = await getUserByUsername(user.username);
-
         if (existingUser) {
             logger.warn(`Username "${user.username}" already exists in the database.`);
             return { success: false, error: "Username already exists." };
         }
-        user.user_id = uuidv4();
-        user.role = "Employee";
 
+        const userId = uuidv4();
         const hashedPassword = await bcrypt.hash(user.password, 10);
-        user.password = hashedPassword;
 
-        const createdUser = await createUser(user);
+        const userPayload = {
+            username: user.username,
+            password: hashedPassword,
+            role: "Employee",
+            user_id: userId,
+            PK: `USER#${userId}`,
+            SK: "PROFILE"
 
+        };
+
+        const createdUser = await createUser(userPayload);
+        if (!createdUser) {
+            logger.error(`Failed to create user "${user.username}".`);
+            return { success: false, error: "DB error while creating user" };
+        };
 
         logger.info(`User "${createdUser.username}" created successfully with ID: ${createdUser.user_id}`);
         return {
@@ -35,14 +49,16 @@ async function registration(user) {
                 user_id: createdUser.user_id
             }
         };
+
     } catch (error) {
         logger.error(`Error during registration: ${error.message}`, error);
         return { success: false, error: "An unexpected error occurred during registration." };
-    }
-}
+    };
 
+};
 
 async function login(user) {
+
     try {
 
         const userFromDB = await getUserByUsername(user.username);
@@ -52,7 +68,7 @@ async function login(user) {
                 success: false,
                 error: "No such username in database."
             };
-        }
+        };
 
         const matchPass = await bcrypt.compare(user.password, userFromDB.password);
 
@@ -61,7 +77,7 @@ async function login(user) {
 
             const token = jwt.sign(
                 {
-                    user_id: userFromDB.user_id,
+                    userId: userFromDB.user_id,
                     username: userFromDB.username,
                     role: userFromDB.role
                 },
@@ -83,27 +99,19 @@ async function login(user) {
             }
         }
 
-
     } catch (error) {
         logger.error(`Error during login: ${error.message}`, error);
         return { success: false, error: "An unexpected error occurred during login." };
     }
-}
 
+};
 
 async function changeUserRole(user_id, newRole) {
+
     try {
-
-        const validRole = ["Employee", "Manager"];
-
-        if (!validRole.includes(newRole)) {
-            logger.warn(`Invalid role "${newRole}".`);
-            return { success: false, error: "Invalid role. Role could only be 'Employee' or 'Manager'." };
-        };
-
         const user = await getUser(user_id);
         if (!user) {
-            logger.warn(`User with username ${user.username} doesn't exist.`);
+            logger.warn(`User with id ${user_id} doesn't exist.`);
             return {
                 success: false,
                 error: "No such username in database."
@@ -117,45 +125,53 @@ async function changeUserRole(user_id, newRole) {
                 error: "User already has that role"
             };
         };
+        const userInput = {
+            userId: user_id,
+            role: newRole
+        };
 
-        const response = await updateUserRole(user_id, newRole);
+
+        const response = await updateUser(userInput);
         if (!response) {
-            logger.warn();//fill logger
+            logger.warn(`Failed to update role for user ${userId} to ${newRole}.`);
             return {
                 success: false,
-                error: ""//fill the error message
-            }
-        }
+                error: "Failed to update the user's role. Please try again."
+            };
+        };
         logger.info(`Role of the user ${user_id} is changed to ${response.role}`);
         return {
             success: true,
             user: user_id,
             role: response.role
         };
-
     } catch (error) {
         logger.error(`Error during role changing: ${error.message}`, error);
         return { success: false, error: "An unexpected error occurred during role changing." };
     }
+};
 
-}
 
-async function updateAccount(user_id, value) {
+async function updateAccount(userId, user) {
     try {
-        const user = await getUser(user_id);
-        if (!user) {
-            logger.warn()//TODO fill the logger
-            return { success: false, error: "User not found." };
+        const userFromDB = await getUser(userId);
+        if (!userFromDB) {
+            logger.warn(`User with ID ${userId} not found.`);
+            return { success: false, error: "User not found in the database." };
         }
+        user.userId = userId;
 
-        const response = await updateUser(user_id, updatedData);
+
+        const response = await updateUser(user);
         if (!response) {
-            logger.warn()//fill the logger
+            logger.warn(`Failed to update user ${userId}.`);
             return {
                 success: false,
-                error: "Error while "//fill error message
-            }
+                error: "Failed to update the user. Please try again later."
+            };
         }
+
+
 
         logger.info(`Successfully updated account info for user ${user_id}`);
         return { success: true, message: "User successfully updated." };
@@ -163,7 +179,39 @@ async function updateAccount(user_id, value) {
         logger.error(`Error while updating details for user ${user_id}`, error);
         return { success: false, error: "Unexpected errot while updating user details." };
     }
+};
+
+
+async function uploadAvatar(userId, file) {
+    try {
+        const user = await getUser(userId);
+        if (!user) {
+            logger.warn('User not found');
+            return { success: false, error: 'User not found' };
+        }
+
+        const fileName = `${userId}/avatar/${Date.now()}_${file.originalname}`;
+        const command = new PutObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: fileName,
+            Body: file.buffer,
+            ContentType: file.mimeType
+        });
+
+        await s3.send(command);
+
+
+        const userPayload = {
+            user_id: userId,
+            profilePicture: fileName
+        };
+        const response = await updateUser(userPayload);
+        return { success: true, user: response };//TODO check if return only secure data
+    } catch (error) {
+        logger.error('Error uploading avatar', error);
+        return { success: false, error: 'Error uploading avatar' };
+    }
 }
 
 
-module.exports = { registration, login, changeUserRole, updateAccount };
+module.exports = { registration, login, changeUserRole, updateAccount, uploadAvatar }

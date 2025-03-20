@@ -6,6 +6,7 @@ const loggerMiddleware = require("./src/middleware/loggingMiddleware");
 const authenticateToken = require("./src/middleware/authMiddleware");
 const ticketRouter = require("./src/routes/ticketRouter");
 const userRouter = require("./src/routes/userRouter");
+const uploadRouter = require("./src/routes/uploadRouter");
 
 app.use(loggerMiddleware);
 

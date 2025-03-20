@@ -2,13 +2,14 @@ const { logger } = require('../util/logger');
 const { submitTicket,
     getPendingTickets,
     processTicket,
-    viewTicketsAsEmployee } = require('../services/ticketService');
+    viewTicketsAsEmployee, uploadReceipt } = require('../services/ticketService');
 const Joi = require('joi');
 
 const schema = Joi.object({
     amount: Joi.number().min(0).required(),
     description: Joi.string().min(5).required(),
-    type: Joi.string().valid("Travel", "Lodging", "Food", "Other").required()
+    type: Joi.string().valid("Travel", "Lodging", "Food", "Other").required(),
+    receiptFileNames: Joi.forbidden()
 })
 
 const ticketValidation = (ticket) => {
@@ -21,6 +22,8 @@ const ticketValidation = (ticket) => {
     return { success: true };
 
 };
+
+
 
 const ticketSubmit = async (req, res) => {
 
@@ -73,6 +76,12 @@ const getPendingTicketsList = async (req, res) => {
 
 const processTickets = async (req, res) => {
     try {
+        const { action } = req.body;
+        if (!["Approved", "Denied"].includes(action)) {
+            logger.warn(`Invalid action: ${action}. Action must be either "Approved" or "Denied".`);
+            return res.status(400).json({ success: false, error: "Invalid action. Action must be either 'Approved' or 'Denied'." });
+        }
+
         const response = await processTicket(req.params.ticketId, req.body.action, req.user.user_id);
         if (!response.success) {
             logger.warn(`Failed to process ticket ${ticketId}. Error: ${response.error}`);
@@ -113,9 +122,32 @@ const viewHistory = async (req, res) => {
 };
 
 
+
+async function receiptUpload(req, res) {
+    try {
+        if (!req.file) {
+            logger.warn("No file uploaded.");
+            return res.status(400).send("No file uploaded.");
+        };
+
+        const response = await uploadReceipt(req.user.userId, req.param.ticketId, req.file);
+        if (!response.success) {
+            logger.warn("Receipt upload failed.");
+            return res.status(500).send("Receipt upload failed.");
+        };
+        logger.info("Receipt uploaded successfully.");
+        return res.status(201).json({ success: true, ticket: response.ticket });
+
+    } catch (error) {
+        logger.error("Error uploading receipt:", error);
+        return res.status(500).send("Internal server error.");
+    }
+
+}
+
 module.exports = {
     ticketSubmit,
     getPendingTicketsList,
     processTickets,
-    viewHistory
+    viewHistory, receiptUpload
 };

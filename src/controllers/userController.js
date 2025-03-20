@@ -1,18 +1,27 @@
 const { logger } = require("../util/logger");
-const { registration, login, changeUserRole, updateAccount } = require("../services/userService");
+const { registration, login, changeUserRole, updateAccount, uploadAvatar } = require("../services/userService");
 const Joi = require('joi');
-const { getUser } = require("../models/userModel");
+const { getUser } = require("../models/reimbursmentModel");
+const { GetObjectCommand, S3Client } = require("@aws-sdk/client-s3")
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+
+require('dotenv').config();
+
 
 const schema = Joi.object({
+    PK: Joi.forbidden(),
+    SK: Joi.forbidden(),
     username: Joi.string().min(3).max(16).required(),
     password: Joi.string().min(3).pattern(new RegExp('^(?=.*\\d)[A-Za-z\\d]{3,}$'))
         .required().messages({
             "string.min": "Password must be at least 3 characters long.",
             "string.pattern.base": "Password must include number."
-        })
+        }),
 });
 
 const profileSchema = Joi.object({
+    PK: Joi.forbidden(),
+    SK: Joi.forbidden(),
     name: Joi.string,
     address: Joi.object({
         street: Joi.string().optional(),
@@ -86,6 +95,11 @@ const changeRole = async (req, res) => {
 
 
     try {
+
+        if (!["Employee", "Manager"].includes(req.body.role)) {
+            logger.warn(`Invalid role: ${req.body.role}`);
+            return res.status(400).json({ success: false, error: "Invalid role" });
+        }
         const response = await changeUserRole(req.param.user_id, req.body.role);
 
         if (!response.success) {
@@ -116,11 +130,16 @@ const getUserAccount = async (req, res) => {
                 error: "No user found"
             })
         }
+        const { PK, SK, password, ...safeData } = user;
+        safeData.profilePicture = await getSignedUrl(S3Client, new GetObjectCommand({
+            Bucket: process.env.S3_BUCKET_NAME,
+            Key: safeData.profilePicture
+        }), { expiresIn: 3600 });
 
-        logger.info();//TODO fill logger
+        logger.info(`User account retrieved successfully for user id ${req.user.user_id}.`);
         return res.statuf(200).json({
             succes: true,
-            user: user
+            user: safeData
         })
 
 
@@ -132,37 +151,48 @@ const getUserAccount = async (req, res) => {
 }
 
 const updateUserAccount = async (req, res) => {
-    //TODO
-
 
     try {
-        //gather and validate all data
-
-        const { error, value } = profileSchema.validate(req.body);
+        const { error } = profileSchema.validate(req.body);
         if (error) {
+            logger.warn(`Profile update validation failed: ${error.details[0].message}`);
             return res.status(400).json({ success: false, error: error.details[0].message });
-        };
+        }
 
-        const response = await updateAccount(req.user.user_id, value);
-        if (!response.succes) {
-            logger.warn();
-            return res.status(400).json({
-                success: false,
-                error: response.error
-            });
-        };
+        const response = await updateAccount(req.user.user_id, req.body);
+        if (!response.success) {
+            logger.warn(`Profile update failed: ${response.error}`);
+            return res.status(400).json({ success: false, error: response.error });
+        }
 
-        logger.info();//TODO fill logger
-
-        return res.status(200).json({
-            succes: true,
-            message: "Profile updated succesfully"
-        });
-
+        logger.info(`User profile updated successfully for user id ${req.user.user_id}.`);
+        return res.status(200).json({ success: true, user: response.user });
     } catch (error) {
-        logger.error("Unexpected error while updating user profile");
-        return res.status(500).json("Unexpected server error while updating user profile");
+        logger.error(`Unexpected error occurred during profile update: ${error.message}`);
+        res.status(500).json({ success: false, error: "An unexpected error occurred during profile update" });
     }
 }
 
-module.exports = { userLogin, userRegistration, changeRole, getUserAccount, updateUserAccount };
+
+async function avatarUpload(req, res) {
+    try {
+        if (!req.file) {
+            logger.warn("No file uploaded.");
+            return res.status(400).send("No file uploaded.");
+        };
+
+        const response = await uploadAvatar(req.user.userId, req.file);
+        if (!response.success) {
+            logger.warn("Avatar upload failed.");
+            return res.status(500).send("Avatar upload failed.");
+        };
+        logger.info("Avatar uploaded successfully.");
+        return res.status(201).json({ success: true, user: response.user });
+
+    } catch (error) {
+        logger.error("Error uploading avatar:", error);
+        return res.status(500).send("Internal server error.");
+    }
+}
+
+module.exports = { userLogin, userRegistration, changeRole, getUserAccount, updateUserAccount, avatarUpload };
