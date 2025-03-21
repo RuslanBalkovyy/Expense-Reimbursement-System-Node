@@ -82,13 +82,13 @@ const processTickets = async (req, res) => {
             return res.status(400).json({ success: false, error: "Invalid action. Action must be either 'Approved' or 'Denied'." });
         }
 
-        const response = await processTicket(req.params.ticketId, req.body.action, req.user.user_id);
+        const response = await processTicket(req.params.ticketId, req.user.user_id, req.body.action);
         if (!response.success) {
-            logger.warn(`Failed to process ticket ${ticketId}. Error: ${response.error}`);
+            logger.warn(`Failed to process ticket ${req.params.ticketId}. Error: ${response.error}`);
             return res.status(400).json({ success: false, error: response.error });
         }
-        logger.info(`Ticket ${ticketId} processed successfully. Action: ${action}`);
-        return res.status(200).json({ success: true, message: `Ticket ${ticketId} has been processed.`, ticket: response.ticket });
+        logger.info(`Ticket ${req.params.ticketId} processed successfully. Action: ${action}`);
+        return res.status(200).json({ success: true, message: `Ticket ${req.params.ticketId} has been processed.`, ticket: response.ticket });
     } catch (error) {
         logger.error(`Error in processTickets: ${error.message}`, error);
         return res.status(500).json({ success: false, error: "An unexpected error occurred while processing the ticket." });
@@ -102,7 +102,7 @@ const viewHistory = async (req, res) => {
         const { type } = req.query;
         const typeValidation = ["Travel", "Lodging", "Food", "Other"];
 
-        if (type && !ticketValidation.includes(type)) {
+        if (type && !typeValidation.includes(type)) {
             logger.warn(`Reimbursement type sould be one of:${typeValidation}`)
             return res.status(400).json({ success: false, error: "Invalid reimbursement type." });
         }
@@ -129,8 +129,7 @@ async function receiptUpload(req, res) {
             logger.warn("No file uploaded.");
             return res.status(400).send("No file uploaded.");
         };
-
-        const response = await uploadReceipt(req.user.userId, req.param.ticketId, req.file);
+        const response = await uploadReceipt(req.user.user_id, req.params.ticketId, req.file);
         if (!response.success) {
             logger.warn("Receipt upload failed.");
             return res.status(500).send("Receipt upload failed.");
@@ -140,7 +139,7 @@ async function receiptUpload(req, res) {
 
     } catch (error) {
         logger.error("Error uploading receipt:", error);
-        return res.status(500).send("Internal server error.");
+        return res.status(500).send("Internal server error!");
     }
 
 }

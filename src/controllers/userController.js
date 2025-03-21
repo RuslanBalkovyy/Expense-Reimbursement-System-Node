@@ -7,6 +7,13 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 require('dotenv').config();
 
+const s3Client = new S3Client({
+    region: process.env.AWS_REGION || 'us-east-1',
+    credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    }
+});
 
 const schema = Joi.object({
     PK: Joi.forbidden(),
@@ -22,7 +29,7 @@ const schema = Joi.object({
 const profileSchema = Joi.object({
     PK: Joi.forbidden(),
     SK: Joi.forbidden(),
-    name: Joi.string,
+    name: Joi.string().optional(),
     address: Joi.object({
         street: Joi.string().optional(),
         city: Joi.string().optional(),
@@ -53,7 +60,7 @@ const userRegistration = async (req, res) => {
 
         const response = await registration(req.body);
         if (!response.success) {
-            logger.warn(`Registration failed for username ${username}: ${response.error}`);
+            logger.warn(`Registration failed for username ${req.body.username}: ${response.error}`);
             return res.status(400).json({ success: false, error: response.error });
         }
 
@@ -100,7 +107,7 @@ const changeRole = async (req, res) => {
             logger.warn(`Invalid role: ${req.body.role}`);
             return res.status(400).json({ success: false, error: "Invalid role" });
         }
-        const response = await changeUserRole(req.param.user_id, req.body.role);
+        const response = await changeUserRole(req.params.user_id, req.body.role);
 
         if (!response.success) {
             logger.warn(`Error during updating role: ${response.error}`);
@@ -124,20 +131,23 @@ const getUserAccount = async (req, res) => {
     try {
         const user = await getUser(req.user.user_id);
         if (!user) {
-            info.warn(`No user with id ${req.user.user_id}`);
+            logger.warn(`No user with id ${req.user.user_id}`);
             return res.status(400).json({
                 succes: false,
                 error: "No user found"
             })
         }
         const { PK, SK, password, ...safeData } = user;
-        safeData.profilePicture = await getSignedUrl(S3Client, new GetObjectCommand({
-            Bucket: process.env.S3_BUCKET_NAME,
-            Key: safeData.profilePicture
-        }), { expiresIn: 3600 });
+
+        if (safeData.profilePicture) {
+            safeData.profilePicture = await getSignedUrl(s3Client, new GetObjectCommand({
+                Bucket: process.env.S3_BUCKET_NAME,
+                Key: safeData.profilePicture
+            }), { expiresIn: 3600 });
+        };
 
         logger.info(`User account retrieved successfully for user id ${req.user.user_id}.`);
-        return res.statuf(200).json({
+        return res.status(200).json({
             succes: true,
             user: safeData
         })
@@ -175,13 +185,13 @@ const updateUserAccount = async (req, res) => {
 
 
 async function avatarUpload(req, res) {
+
     try {
         if (!req.file) {
             logger.warn("No file uploaded.");
             return res.status(400).send("No file uploaded.");
         };
-
-        const response = await uploadAvatar(req.user.userId, req.file);
+        const response = await uploadAvatar(req.user.user_id, req.file);
         if (!response.success) {
             logger.warn("Avatar upload failed.");
             return res.status(500).send("Avatar upload failed.");

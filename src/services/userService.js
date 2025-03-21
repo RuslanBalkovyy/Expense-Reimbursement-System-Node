@@ -58,7 +58,7 @@ async function registration(user) {
 };
 
 async function login(user) {
-
+    console.log("SECRET_KEY:", process.env.SECRET_KEY);
     try {
 
         const userFromDB = await getUserByUsername(user.username);
@@ -77,7 +77,7 @@ async function login(user) {
 
             const token = jwt.sign(
                 {
-                    userId: userFromDB.user_id,
+                    user_id: userFromDB.user_id,
                     username: userFromDB.username,
                     role: userFromDB.role
                 },
@@ -152,14 +152,19 @@ async function changeUserRole(user_id, newRole) {
 };
 
 
-async function updateAccount(userId, user) {
+async function updateAccount(user_id, user) {
     try {
-        const userFromDB = await getUser(userId);
+        const userFromDB = await getUser(user_id);
+
+        if (!user || Object.keys(user).length === 0) {
+            logger.warn('No user data provided for update.');
+            return { success: false, error: 'No user data provided for update.' };
+        }
         if (!userFromDB) {
-            logger.warn(`User with ID ${userId} not found.`);
+            logger.warn(`User with ID ${user_id} not found.`);
             return { success: false, error: "User not found in the database." };
         }
-        user.userId = userId;
+        user.user_id = user_id;
         if (user.username) {
             logger.warn('Username cannot be changed.');
             return { success: false, error: 'Username cannot be changed.' };
@@ -167,7 +172,7 @@ async function updateAccount(userId, user) {
 
         const response = await updateUser(user);
         if (!response) {
-            logger.warn(`Failed to update user ${userId}.`);
+            logger.warn(`Failed to update user ${user_id}.`);
             return {
                 success: false,
                 error: "Failed to update the user. Please try again later."
@@ -176,10 +181,10 @@ async function updateAccount(userId, user) {
 
 
 
-        logger.info(`Successfully updated account info for user ${userId}`);
+        logger.info(`Successfully updated account info for user ${user_id}`);
         return { success: true, message: "User successfully updated." };
     } catch (error) {
-        logger.error(`Error while updating details for user ${userId}`, error);
+        logger.error(`Error while updating details for user ${user_id}`, error);
         return { success: false, error: "Unexpected error while updating user details." };
     }
 };
@@ -213,7 +218,8 @@ async function uploadAvatar(userId, file) {
             logger.warn(`Failed to update avatar for user ${userId}.`);
             return { success: false, error: "Failed to update the user's avatar. Please try again." };
         }
-        return { success: true, user: response };//TODO check if return only secure data
+        const { PK, SK, password, ...safeData } = response
+        return { success: true, user: safeData };
     } catch (error) {
         logger.error('Unexpected error during avatar upload.', error);
         return { success: false, error: 'Unexpected error during avatar upload.' };

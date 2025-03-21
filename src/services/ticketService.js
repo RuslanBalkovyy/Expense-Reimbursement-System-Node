@@ -15,13 +15,13 @@ const BUCKET_NAME = process.env.S3_BUCKET_NAME;
 const s3 = new S3Client({ region: REGION });
 
 
-async function submitTicket(ticket, userId) {
+async function submitTicket(ticket, user_id) {
 
 
     try {
-        const user = await getUser(userId);
+        const user = await getUser(user_id);
         if (!user) {
-            logger.warn(`User with ID ${userId} does not exist.`);
+            logger.warn(`User with _iD ${user_id} does not exist.`);
             return { success: false, error: "User does not exist." };
         };
 
@@ -30,9 +30,10 @@ async function submitTicket(ticket, userId) {
 
         const ticketPayload = {
             ...ticket,
+            user_id: user_id,
             ticket_id: ticketId,
             status: "Pending",
-            PK: `USER#${userId}`,
+            PK: `USER#${user_id}`,
             SK: `TICKET#${ticketId}`,
             receiptFileNames: [],
             createdAt: new Date().toISOString()
@@ -44,7 +45,7 @@ async function submitTicket(ticket, userId) {
             return { success: false, error: "Failed to create ticket." }
         }
 
-        logger.info(`Ticket ${ticketId} created successfully for user ${userId}.`);
+        logger.info(`Ticket ${ticketId} created successfully for user ${user_id}.`);
 
         const { PK, SK, ...ticketDetails } = createdTicket;
 
@@ -55,7 +56,7 @@ async function submitTicket(ticket, userId) {
 
 
     } catch (error) {
-        logger.error(`Error during ticket submission for user ${userId}: ${error.message}`, error);
+        logger.error(`Error during ticket submission for user ${user_id}: ${error.message}`, error);
         return { success: false, error: "An unexpected error occurred during ticket submission." };
     };
 
@@ -90,22 +91,23 @@ async function processTicket(ticketId, userId, action) {
 
         let ticket = await getTicket(ticketId);
 
+
         if (!ticket || ticket.status !== "Pending") {
             logger.warn(`Cannot process ticket ${ticketId}. Status: ${ticket ? ticket.status : "Not Found"}`);
             return { success: false, error: "Ticket cannot be processed. Either it does not exist or it is already processed." };
         };
-        if (ticket.userId == userId) {
+        if (ticket.user_id == userId) {
             logger.warn(`Cannot process ticket ${ticketId}. Processing own ticket is not allowed`);
             return { success: false, error: "Ticket cannot be processed. Not allowed to process own ticket." };
         };
         const updatedTicket = {
-            user_id: userId,
-            ticket_id: ticketId,
+            user_id: ticket.user_id,
+            ticket_id: ticket.ticket_id,
             status: action
         };
 
-        const response = await updateTicket(updatedTicket);
 
+        const response = await updateTicket(updatedTicket);
         if (!response) {
             logger.warn(`Failed to update ticket ${ticketId} status to ${action}.`);
             return {
@@ -131,7 +133,6 @@ async function viewTicketsAsEmployee(userId, type) {
             logger.warn(`User with ID ${userId} does not exist.`);
             return { success: false, error: "User does not exist." };
         };
-
         let tickets = null;
         if (type) {
             tickets = await getTicketsByUserAndType(userId, type);
@@ -159,7 +160,7 @@ async function viewTicketsAsEmployee(userId, type) {
     };
 };
 
-
+////FIXME
 async function uploadReceipt(userId, ticketId, file) {
     try {
         const ticket = await getTicket(ticketId);
@@ -170,10 +171,12 @@ async function uploadReceipt(userId, ticketId, file) {
         }
 
 
+
+
         const fileName = `${userId}/${ticketId}/${Date.now()}_${file.originalname}`;
         const command = new PutObjectCommand({
             Bucket: BUCKET_NAME,
-            key: fileName,
+            Key: fileName,
             Body: file.buffer,
             ContentType: file.mimeType
         });
@@ -182,13 +185,14 @@ async function uploadReceipt(userId, ticketId, file) {
         const newReciept = { fileName }
         const ticketPayload = {
             ticket_id: ticketId,
-            receiptFileName: fileName,
-            user_id: newReciept
+            newReciept: fileName,
+            user_id: userId
         };
+
         const response = await appendRecieptName(ticketPayload);
         return { success: true, ticket: response }
     } catch (error) {
-        logger.error('Error uploading receipt', error);
+        logger.error('Error uploading receipt ', error);
         return {
             success: false, error: 'Failed to upload receipt'
         };

@@ -23,10 +23,10 @@ async function createUser(user) {
 };
 
 async function getUser(userId) {
-
+    console.log("userId:", userId);
     const command = new GetCommand({
         TableName: tableName,
-        key: {
+        Key: {
             PK: `USER#${userId}`,
             SK: "PROFILE"
         }
@@ -81,7 +81,7 @@ async function updateUser(user) {
     const ExpressionAttributeValues = {};
 
     Object.keys(user).forEach((key, index) => {
-        if (key !== "userId" && key !== "PK" && key !== "SK") {
+        if (key !== "user_id" && key !== "PK" && key !== "SK") {
             const attributeKey = `#key${index}`;
             const attributeValue = `:value${index}`;
             updateExpression += `${attributeKey} = ${attributeValue}, `;
@@ -95,7 +95,7 @@ async function updateUser(user) {
     const command = new UpdateCommand({
         TableName: tableName,
         Key: {
-            PK: `USER#${user.userId}`,
+            PK: `USER#${user.user_id}`,
             SK: "PROFILE"
         },
         UpdateExpression: updateExpression,
@@ -115,20 +115,6 @@ async function updateUser(user) {
 }
 
 
-// const user = {
-//     PK: `USER#${userId}`,           // Primary key: includes a prefix and the user's unique id
-//     SK: "PROFILE",                  // Sort key: constant value for user profiles
-//     user_id: userId,                // Optional duplicate of the id if you wish to store it separately
-//     username: "johndoe",            // Unique username (for example, used with a GSI to retrieve by username)
-//     password: hashedPassword,       // The user's password after hashing
-//     role: "Employee",               // Default role (could be "Manager" if changed later)
-//     name: "John Doe",               // Optional: the user's full name
-//     address: "123 Main St, Anytown",// Optional: address
-//     profilePicture: "https://example.com/images/johndoe.jpg", // Optional: URL to profile picture
-//     createdAt: new Date().toISOString() // Timestamp when the user is created
-// };
-
-
 
 async function createTicket(ticket) {
 
@@ -139,7 +125,7 @@ async function createTicket(ticket) {
 
     try {
         const response = await documentClient.send(command);
-        logger.info(`Created new ticket for user: ${userId}, ticketId: ${ticketId}`);
+        logger.info(`Created new ticket for user: ${ticket.user_id}, ticketId: ${ticket.ticket_id}`);
         return response;
     } catch (error) {
         logger.error(`Error creating ticket for user: ${userId}`, error);
@@ -180,7 +166,7 @@ async function updateTicket(ticket) {
     const ExpressionAttributeValues = {};
 
     Object.keys(ticket).forEach((key, index) => {
-        if (key !== "userId" && key !== "PK" && key !== "SK") {
+        if (key !== "user_id" && key !== "PK" && key !== "SK") {
             const attributeKey = `#key${index}`;
             const attributeValue = `:value${index}`;
             updateExpression += `${attributeKey} = ${attributeValue}, `;
@@ -194,8 +180,8 @@ async function updateTicket(ticket) {
     const command = new UpdateCommand({
         TableName: tableName,
         Key: {
-            PK: `USER#${ticket.userId}`,
-            SK: `TICKET#${ticket.ticketId}`
+            PK: `USER#${ticket.user_id}`,
+            SK: `TICKET#${ticket.ticket_id}`
         },
         UpdateExpression: updateExpression,
         ExpressionAttributeNames,
@@ -205,10 +191,10 @@ async function updateTicket(ticket) {
 
     try {
         const response = await documentClient.send(command);
-        logger.info(`Successfully updated ticket for user: ${ticket.userId}, ticketId: ${ticket.ticketId}`);
+        logger.info(`Successfully updated ticket for user: ${ticket.user_id}, ticketid: ${ticket.ticket_id}`);
         return response.Attributes;
     } catch (error) {
-        logger.error(`Error updating ticket for user: ${ticket.userId}, ticketId: ${ticket.ticketId}`, error);
+        logger.error(`Error updating ticket for user: ${ticket.user_id}, ticketid: ${ticket.ticket_id}`, error);
         return null;
     }
 };
@@ -244,11 +230,14 @@ async function getTicketsByUserAndType(userId, type) {
     const command = new QueryCommand({
         TableName: tableName,
         KeyConditionExpression: "PK = :pk AND begins_with(SK, :ticketPrefix)",
-        FilterExpression: "reimbType = :type",
+        FilterExpression: "#type = :type",
         ExpressionAttributeValues: {
             ":pk": `USER#${userId}`,
             ":ticketPrefix": "TICKET#",
             ":type": type
+        },
+        ExpressionAttributeNames: {
+            "#type": "type"
         }
     });
 
@@ -268,17 +257,20 @@ async function getTicketsByUserAndType(userId, type) {
 }
 
 async function getTicketsByStatus(status) {
-    const command = new QueryCommand({
-        TableName: tableName,
-        IndexName: "StatusIndex",
-        KeyConditionExpression: "status = :status",
+    const command = new ScanCommand({
+        TableName: tableName, // Replace with your table name
+        FilterExpression: "#status = :status", // Filter the items by status
         ExpressionAttributeValues: {
-            ":status": status
+            ":status": status // Replace with the desired status
+        },
+        ExpressionAttributeNames: {
+            "#status": "status" // Map 'status' in case it's a reserved word
         }
     });
 
     try {
         const response = await documentClient.send(command);
+        console.log(response);
         if (response.Items && response.Items.length > 0) {
             logger.info(`Retrieved ${response.Items.length} tickets with status '${status}'.`);
             return response.Items;
@@ -299,11 +291,13 @@ async function appendRecieptName(ticket) {
         ":newReceipt": [ticket.newReceipt]
     };
 
+    console.log(ticket)
+
     const command = new UpdateCommand({
         TableName: tableName,
         Key: {
-            PK: `USER#${ticket.userId}`,
-            SK: `TICKET#${ticket.ticketId}`
+            PK: `USER#${ticket.user_Id}`,
+            SK: `TICKET#${ticket.ticket_Id}`
         },
         UpdateExpression: updateExpression,
         ExpressionAttributeValues,
