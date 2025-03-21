@@ -96,10 +96,14 @@ async function processTicket(ticketId, userId, action) {
             logger.warn(`Cannot process ticket ${ticketId}. Status: ${ticket ? ticket.status : "Not Found"}`);
             return { success: false, error: "Ticket cannot be processed. Either it does not exist or it is already processed." };
         };
-        if (ticket.user_id == userId) {
+
+
+        if (ticket.userId === userId) {
             logger.warn(`Cannot process ticket ${ticketId}. Processing own ticket is not allowed`);
-            return { success: false, error: "Ticket cannot be processed. Not allowed to process own ticket." };
-        };
+
+            return { success: false, error: 'Ticket cannot be processed. Not allowed to process own ticket.' };
+        }
+
         const updatedTicket = {
             user_id: ticket.user_id,
             ticket_id: ticket.ticket_id,
@@ -185,7 +189,7 @@ async function uploadReceipt(userId, ticketId, file) {
         const newReciept = { fileName }
         const ticketPayload = {
             ticket_id: ticketId,
-            newReciept: fileName,
+            newReciept: newReciept,
             user_id: userId
         };
 

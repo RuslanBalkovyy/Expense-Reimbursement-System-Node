@@ -258,13 +258,13 @@ async function getTicketsByUserAndType(userId, type) {
 
 async function getTicketsByStatus(status) {
     const command = new ScanCommand({
-        TableName: tableName, // Replace with your table name
-        FilterExpression: "#status = :status", // Filter the items by status
+        TableName: tableName,
+        FilterExpression: "#status = :status",
         ExpressionAttributeValues: {
-            ":status": status // Replace with the desired status
+            ":status": status
         },
         ExpressionAttributeNames: {
-            "#status": "status" // Map 'status' in case it's a reserved word
+            "#status": "status"
         }
     });
 
@@ -309,25 +309,11 @@ async function appendRecieptName(ticket) {
         logger.info(`Successfully updated receiptFileName for ticket: ${ticket.ticketId}`);
         return response.Attributes;
     } catch (error) {
-        logger.error(`Error updating receiptFileName for ticket: ${ticket.ticketId}`, error);
+        logger.error(`Error updating receipt FileName for ticket: ${ticket.ticketId}`, error);
         return null;
     }
 
 };
-
-
-// const ticket = {
-//     PK: `USER#${userId}`,          // Partition key: user ID links tickets to the user
-//     SK: `TICKET#${ticketId}`,      // Sort key: unique ticket ID
-//     ticketId: ticketId,            // Ticket ID for unique identification
-//     createdAt: new Date().toISOString(), // Timestamp when the ticket was created
-//     amount: 250.75,                // Reimbursement amount
-//     description: "Hotel booking for business trip", // Description of the ticket
-//     reimbType: "Lodging",          // Reimbursement type (e.g., "Travel", "Food", etc.)
-//     receiptFileNames: [],               // Receipt file name (can be populated later)
-//     status: "Pending",             // Default status: "Pending"
-//     type: "TICKET"                 // Identifies this item as a ticket in the table
-// };
 
 
 module.exports = {
