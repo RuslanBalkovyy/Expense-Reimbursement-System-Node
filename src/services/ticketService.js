@@ -166,7 +166,7 @@ async function uploadReceipt(userId, ticketId, file) {
 
         if (!ticket || ticket.user_id !== userId) {
             logger.warn('Ticket not found or user ID does not match');
-            return { success: false, error: { message: 'Ticket not found or user ID does not match' } }
+            return { success: false, error: 'Ticket not found or user ID does not match' }
         }
 
 
@@ -187,9 +187,13 @@ async function uploadReceipt(userId, ticketId, file) {
         };
         const response = await appendRecieptName(ticketPayload);
         return { success: true, ticket: response }
-    } catch (error) { }
-    logger.error('Error uploading receipt', error);
-    return { success: false, error: 'Error uploading receipt' };
+    } catch (error) {
+        logger.error('Error uploading receipt', error);
+        return {
+            success: false, error: 'Failed to upload receipt'
+        };
+    }
+
 };
 
 
@@ -233,5 +237,5 @@ module.exports = {
     getPendingTickets,
     processTicket,
     viewTicketsAsEmployee,
-    uploadReceipt
+    uploadReceipt, loadTicketsWithSignedUrls
 };

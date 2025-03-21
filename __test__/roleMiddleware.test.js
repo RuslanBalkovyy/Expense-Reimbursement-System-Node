@@ -26,7 +26,19 @@ describe("Role middleware testing", () => {
 
         authorizeRole("Manager")(req, res, next);
 
-
         expect(next).toHaveBeenCalled();
+    });
+
+    test("should handle malformed req.user gracefully when role is missing", () => {
+        req.user = { username: "user" };
+
+        authorizeRole("Manager")(req, res, next);
+
+        expect(res.status).toHaveBeenCalledWith(403);
+        expect(res.json).toHaveBeenCalledWith({
+            success: false,
+            error: "Access denied. You must be a Manager to access this route."
+        });
+        expect(next).not.toHaveBeenCalled();
     });
 });

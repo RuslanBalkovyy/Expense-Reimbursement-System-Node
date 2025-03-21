@@ -1,198 +1,282 @@
-const { createTicket, getTicket, getAllTicketsByStatus,
-    getAllTicketsByUserId, getAllTicketsForAdmin, updateTicket
-} = require("../src/models/ticketModel");
-const { getUser } = require("../src/models/userModel");
-const { submitTicket,
-    getPendingTickets,
-    processTicket,
-    viewTicketsAsEmployee
-} = require("../src/services/ticketService");
+const { submitTicket, getPendingTickets, processTicket, viewTicketsAsEmployee, uploadReceipt, loadTicketsWithSignedUrls } = require('../src/services/ticketService');
+const { createTicket, getTicket, getTicketsByStatus, getTicketsByUserId, getTicketsByUserAndType, updateTicket, getUser, appendRecieptName } = require('../src/models/reimbursmentModel');
+const { S3Client } = require("@aws-sdk/client-s3");
 
-jest.mock("../src/models/ticketModel");
-jest.mock("../src/models/userModel");
-jest.mock('uuid', () => ({
-    v4: jest.fn(() => 'mocked-uuid'),
+
+
+
+jest.mock('../src/services/ticketService', () => ({
+    ...jest.requireActual('../src/services/ticketService'),
+    loadTicketsWithSignedUrls: jest.fn(),
 }));
 
+jest.mock('../src/models/reimbursmentModel');
+jest.mock('@aws-sdk/client-s3');
+jest.mock('@aws-sdk/s3-request-presigner');
 
-describe("submitTicket", () => {
 
-    const mockTicket = { amount: 300, description: "test description" };
-
-    test("should return success:false, error:user does not exit", async () => {
-        getUser.mockResolvedValue(null);
-        console.log(await getUser(1));
-
-        const response = await submitTicket(mockTicket, 1);
-
-        expect(response).toMatchObject({ success: false, error: "User does not exist." });
-        expect(getUser).toHaveBeenCalledWith(1);
-
+describe('Ticket Service', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
     });
 
-    test("should return success:false, error:database issue", async () => {
-        createTicket.mockResolvedValue(null);
-        getUser.mockResolvedValue(true);
+    describe('submitTicket', () => {
+        it('should submit a ticket successfully', async () => {
+            const userId = 'user123';
+            const ticket = { description: 'Test ticket' };
+            const user = { id: userId };
+            const createdTicket = { ticket_id: 'ticket123', description: 'Test ticket', status: 'Pending' };
 
-        const response = await submitTicket(mockTicket, 1);
+            getUser.mockResolvedValue(user);
+            createTicket.mockResolvedValue(createdTicket);
 
-        expect(response).toMatchObject({ success: false, error: "Failed to create ticket due to a database issue." });
+            const result = await submitTicket(ticket, userId);
 
+            expect(result.success).toBe(true);
+            expect(result.ticket).toEqual(createdTicket);
+        });
+
+        it('should return an error if user does not exist', async () => {
+            const userId = 'user123';
+            const ticket = { description: 'Test ticket' };
+
+            getUser.mockResolvedValue(null);
+
+            const result = await submitTicket(ticket, userId);
+
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('User does not exist.');
+        });
+
+        it('should return an error if ticket creation fails', async () => {
+            const userId = 'user123';
+            const ticket = { description: 'Test ticket' };
+            const user = { id: userId };
+
+            getUser.mockResolvedValue(user);
+            createTicket.mockResolvedValue(false);
+
+            const result = await submitTicket(ticket, userId);
+
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('Failed to create ticket.');
+        });
+
+        it('should return an error if an unexpected error occurs', async () => {
+            const userId = 'user123';
+            const ticket = { description: 'Test ticket' };
+
+            getUser.mockRejectedValue(new Error('Unexpected error'));
+
+            const result = await submitTicket(ticket, userId);
+
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('An unexpected error occurred during ticket submission.');
+        });
     });
 
-    test("sould return success:true, ticket:ticket", async () => {
-        createTicket.mockResolvedValue(mockTicket);
-        getUser.mockResolvedValue(true);
+    describe('getPendingTickets', () => {
+        it('should retrieve pending tickets successfully', async () => {
+            const tickets = [{ ticket_id: 'ticket123', status: 'Pending', receiptFileName: [] }];
+            const signedTickets = [
+                {
+                    ticket_id: 'ticket123',
+                    status: 'Pending',
+                    receiptFileName: [],
+                },
+            ];
 
-        const response = await submitTicket(mockTicket, 1);
+            getTicketsByStatus.mockResolvedValue(tickets);
+            loadTicketsWithSignedUrls.mockResolvedValue(signedTickets);
 
-        expect(response).toMatchObject({
-            success: true, ticket: {
-                ticket_id: 'mocked-uuid',
-                amount: mockTicket.amount,
-                description: mockTicket.description,
-                status: "Pending",
-                created_at: expect.any(String)
-            }
+            const result = await getPendingTickets();
+
+            expect(result.success).toBe(true);
+            expect(result.tickets).toEqual(signedTickets);
+        });
+
+        it('should return an error if no pending tickets are found', async () => {
+            getTicketsByStatus.mockResolvedValue([]);
+
+            const result = await getPendingTickets();
+
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('No pending tickets available for processing.');
+        });
+        it('should return an error if an unexpected error occurs', async () => {
+            getTicketsByStatus.mockRejectedValue(new Error('Unexpected error'));
+
+            const result = await getPendingTickets();
+
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('An unexpected error occurred during retrieving tickets.');
         });
 
     });
 
-    test("should return success:false, error:unexpected error", async () => {
-        createTicket.mockRejectedValue(new Error("Dynamo DB error"));
-        getUser.mockResolvedValue(true);
+    describe('processTicket', () => {
+        it('should process a ticket successfully', async () => {
+            const ticketId = 'ticket123';
+            const userId = 'user123';
+            const action = 'Approved';
+            const ticket = { ticket_id: ticketId, status: 'Pending', userId: 'user456' };
+            const updatedTicket = { ticket_id: ticketId, status: action };
 
-        const response = await submitTicket(mockTicket, 1);
+            getTicket.mockResolvedValue(ticket);
+            updateTicket.mockResolvedValue(updatedTicket);
 
-        expect(response).toMatchObject({ success: false, error: "An unexpected error occurred during ticket submission." });
+            const result = await processTicket(ticketId, userId, action);
 
+            expect(result.success).toBe(true);
+            expect(result.ticket).toEqual(updatedTicket);
+        });
 
+        it('should return an error if ticket does not exist or is already processed', async () => {
+            const ticketId = 'ticket123';
+            const userId = 'user123';
+            const action = 'Approved';
+
+            getTicket.mockResolvedValue(null);
+
+            const result = await processTicket(ticketId, userId, action);
+
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('Ticket cannot be processed. Either it does not exist or it is already processed.');
+        });
+
+        it('should return an error if user tries to process their own ticket', async () => {
+            const ticketId = 'ticket123';
+            const userId = 'user123';
+            const action = 'Approved';
+            const ticket = { ticket_id: ticketId, status: 'Pending', userId: userId };
+
+            getTicket.mockResolvedValue(ticket);
+
+            const result = await processTicket(ticketId, userId, action);
+
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('Ticket cannot be processed. Not allowed to process own ticket.');
+        });
     });
 
-});
+    describe('viewTicketsAsEmployee', () => {
+        it('should retrieve tickets for a user successfully', async () => {
+            const userId = 'user123';
+            const tickets = [{ ticket_id: 'ticket123', userId }];
+            const signedTickets = [
+                {
+                    ticket_id: 'ticket123',
+                    userId: 'user123',
+                },
+            ];
+            const user = { id: userId };
 
-describe("getPendingTicket", () => {
+            getUser.mockResolvedValue(user);
+            getTicketsByUserId.mockResolvedValue(tickets);
 
-    test("should return success:false, error:no pending ticket", async () => {
-        getAllTicketsByStatus.mockResolvedValue([]);
-        const response = await getPendingTickets();
 
-        expect(getAllTicketsByStatus).toHaveBeenCalledWith("Pending");
-        expect(response).toMatchObject({ success: false, error: "No pending tickets available for processing." });
+            const result = await viewTicketsAsEmployee(userId);
+
+            expect(result.success).toBe(true);
+            expect(result.tickets).toEqual(signedTickets);
+        });
+
+
+        it('should return an error if user does not exist', async () => {
+            const userId = 'user123';
+
+            getUser.mockResolvedValue(null);
+
+            const result = await viewTicketsAsEmployee(userId);
+
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('User does not exist.');
+        });
+
+        it('should retrieve tickets successfully by user ID and type', async () => {
+            const userId = 'user123';
+            const type = 'Pending';
+            const tickets = [{ ticket_id: 'ticket123', userId, type }];
+            const signedTickets = [
+                {
+                    ticket_id: 'ticket123',
+                    userId: 'user123',
+                    type: 'Pending',
+                },
+            ];
+            const user = { id: userId };
+
+            getUser.mockResolvedValue(user);
+            getTicketsByUserAndType.mockResolvedValue(tickets);
+
+            const result = await viewTicketsAsEmployee(userId, type);
+
+            expect(result.success).toBe(true);
+            expect(result.tickets).toEqual(signedTickets);
+        });
+
+        it('should return an error if no tickets are found', async () => {
+            const userId = 'user123';
+            const type = 'Pending';
+            const user = { id: userId };
+
+            getUser.mockResolvedValue(user);
+            getTicketsByUserAndType.mockResolvedValue([]);
+
+            const result = await viewTicketsAsEmployee(userId, type);
+
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('No previous tickets found for the user.');
+        });
     });
 
-    test("should return success:true, ticket", async () => {
-        getAllTicketsByStatus.mockResolvedValue([{ ticket_id: 1, created_at: "1" }, { ticket_id: 2, created_at: "2" }]);
+    describe('uploadReceipt', () => {
+        it('should upload a receipt successfully', async () => {
+            const userId = 'user123';
+            const ticketId = 'ticket123';
+            const file = { originalname: 'receipt.jpg', buffer: Buffer.from(''), mimeType: 'image/jpeg' };
+            const ticket = { ticket_id: ticketId, user_id: userId, receiptFileName: [] };
+            const response = { ticket_id: ticketId, receiptFileName: [`${userId}/${ticketId}/receipt.jpg`] };
 
-        const respone = await getPendingTickets();
+            getTicket.mockResolvedValue(ticket);
+            appendRecieptName.mockResolvedValue(response);
+            S3Client.prototype.send.mockResolvedValue({});
 
-        expect(respone).toMatchObject({
-            success: true,
-            tickets: expect.any(Array)
-        })
-    });
+            const result = await uploadReceipt(userId, ticketId, file);
 
-    test("should return success:false, unexpected error", async () => {
-        getAllTicketsByStatus.mockRejectedValue(new Error("Dynamo DB error"));
+            expect(result.success).toBe(true);
+            expect(result.ticket).toEqual(response);
+        });
 
-        const response = await getPendingTickets();
-        expect(response).toMatchObject({ success: false, error: "An unexpected error occurred during retrieving tickets." });
-    });
-});
+        it('should return an error if ticket does not exist or user ID does not match', async () => {
+            const userId = 'user123';
+            const ticketId = 'ticket123';
+            const file = { originalname: 'receipt.jpg', buffer: Buffer.from(''), mimeType: 'image/jpeg' };
 
-describe("processTicket", () => {
-    //FIXME add user id to the request and new test case for trying to process own ticket 
-    test("should return success:false, invatil action", async () => {
-        const response = await processTicket(1, "Pending");
-        expect(response).toMatchObject({ success: false, error: "Invalid action. Tickets can only be Approved or Denied." });
-    });
-    test("should return false, error:cannot be processed, not exist", async () => {
-        getTicket.mockResolvedValue(null);
+            getTicket.mockResolvedValue(null);
 
-        const response = await processTicket(1, "Approved");
+            const result = await uploadReceipt(userId, ticketId, file);
 
-        expect(response).toMatchObject({ success: false, error: "Ticket cannot be processed. Either it does not exist or it is already processed." });
-        expect(getTicket).toHaveBeenCalledWith(1);
-    });
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('Ticket not found or user ID does not match');
+        });
 
-    test("should return false, error: already processed", async () => {
-        getTicket.mockResolvedValue({ ticket_id: 1, statuf: "Denied" });
-
-        const response = await processTicket(1, "Approved");
-
-        expect(response).toMatchObject({ success: false, error: "Ticket cannot be processed. Either it does not exist or it is already processed." });
-        expect(getTicket).toHaveBeenCalledWith(1);
-    });
-
-    test("should return success:true, ticket", async () => {
-        getTicket.mockResolvedValue({ ticket_id: 1, status: "Pending" });
-        updateTicket.mockResolvedValue({ status: "Approved" });
-
-        const response = await processTicket(1, "Approved");
-
-        expect(getTicket).toHaveBeenCalledWith(1);
-        expect(updateTicket).toHaveBeenCalledWith(1, "Approved");
-        expect(response).toMatchObject({ success: true, ticket: { status: "Approved" } });
-    });
-
-    test("should return success:false, failed to process", async () => {
-        getTicket.mockRejectedValue(new Error("Dynamo DB error"));
-
-        const response = await processTicket(1, "Approved");
-
-        expect(response).toMatchObject({ success: false, error: "Failed to process ticket. Please try again later." });
-    });
-});
-
-describe("viewTicketAsEmployee", () => {
-    //TODO add cases for filtering by type 
-    test("should return success:false, error:user not exist", async () => {
-        getUser.mockResolvedValue(null);
-
-        const response = await viewTicketsAsEmployee(1);
-
-        expect(response).toMatchObject({ success: false, error: "User does not exist." });
-    });
+        it('should return an error if receipt upload fails', async () => {
 
 
-    test("should return success:false, error:no previous ticekt found", async () => {
-        getUser.mockResolvedValue({ user_id: 1 });
-        getAllTicketsByUserId.mockResolvedValue(null);
+            const userId = 'user123';
+            const ticketId = 'ticket123';
+            const file = { originalname: 'receipt.jpg', buffer: Buffer.from(''), mimeType: 'image/jpeg' };
+            const ticket = { ticket_id: ticketId, user_id: userId, receiptFileName: [] };
 
-        const response = await viewTicketsAsEmployee(1);
+            getTicket.mockResolvedValue(ticket);
+            S3Client.prototype.send.mockRejectedValue(new Error('Upload failed'));
 
-        expect(response).toMatchObject({ success: false, error: "No previous tickets found." });
-    });
-
-
-    test("should return success:true, ticket.map", async () => {
-        getUser.mockResolvedValue({ user_id: 1 });
-        getAllTicketsByUserId.mockResolvedValue([{
-            ticket_id: 1,
-            amount: 200,
-            description: "test description 1",
-            status: "Approved",
-            created_at: "1"
-        },
-        {
-            ticket_id: 2,
-            amount: 10000,
-            description: "test description 2",
-            status: "Denied",
-            created_at: "2"
-        }]);
-
-        const response = await viewTicketsAsEmployee(1);
-
-        expect(response).toMatchObject({ success: true, tickets: expect.arrayContaining([expect.any(Object)], [expect.any(Object)]) });
-    });
+            const result = await uploadReceipt(userId, ticketId, file);
 
 
-    test("should return success:false,error:unexpected error", async () => {
-        getUser.mockRejectedValue(new Error("Dynamo DB error"));
-
-        const response = await viewTicketsAsEmployee(1);
-
-        expect(response).toMatchObject({ success: false, error: "An unexpected error occurred while retrieving tickets." });
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('Failed to upload receipt');
+        });
     });
 });

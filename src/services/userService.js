@@ -133,7 +133,7 @@ async function changeUserRole(user_id, newRole) {
 
         const response = await updateUser(userInput);
         if (!response) {
-            logger.warn(`Failed to update role for user ${userId} to ${newRole}.`);
+            logger.warn(`Failed to update role for user ${user_id} to ${newRole}.`);
             return {
                 success: false,
                 error: "Failed to update the user's role. Please try again."
@@ -160,7 +160,10 @@ async function updateAccount(userId, user) {
             return { success: false, error: "User not found in the database." };
         }
         user.userId = userId;
-
+        if (user.username) {
+            logger.warn('Username cannot be changed.');
+            return { success: false, error: 'Username cannot be changed.' };
+        }
 
         const response = await updateUser(user);
         if (!response) {
@@ -173,11 +176,11 @@ async function updateAccount(userId, user) {
 
 
 
-        logger.info(`Successfully updated account info for user ${user_id}`);
+        logger.info(`Successfully updated account info for user ${userId}`);
         return { success: true, message: "User successfully updated." };
     } catch (error) {
-        logger.error(`Error while updating details for user ${user_id}`, error);
-        return { success: false, error: "Unexpected errot while updating user details." };
+        logger.error(`Error while updating details for user ${userId}`, error);
+        return { success: false, error: "Unexpected error while updating user details." };
     }
 };
 
@@ -206,10 +209,14 @@ async function uploadAvatar(userId, file) {
             profilePicture: fileName
         };
         const response = await updateUser(userPayload);
+        if (!response) {
+            logger.warn(`Failed to update avatar for user ${userId}.`);
+            return { success: false, error: "Failed to update the user's avatar. Please try again." };
+        }
         return { success: true, user: response };//TODO check if return only secure data
     } catch (error) {
-        logger.error('Error uploading avatar', error);
-        return { success: false, error: 'Error uploading avatar' };
+        logger.error('Unexpected error during avatar upload.', error);
+        return { success: false, error: 'Unexpected error during avatar upload.' };
     }
 }
 
