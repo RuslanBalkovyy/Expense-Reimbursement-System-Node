@@ -1,5 +1,5 @@
 const { submitTicket, getPendingTickets, processTicket, viewTicketsAsEmployee, uploadReceipt, loadTicketsWithSignedUrls } = require('../src/services/ticketService');
-const { createTicket, getTicket, getTicketsByStatus, getTicketsByUserId, getTicketsByUserAndType, updateTicket, getUser, appendRecieptName } = require('../src/models/reimbursmentModel');
+const { createTicket, getTicket, getTicketsByStatus, getTicketsByUserId, getTicketsByUserAndType, updateTicket, getUser } = require('../src/models/reimbursmentModel');
 const { S3Client } = require("@aws-sdk/client-s3");
 
 
@@ -239,7 +239,6 @@ describe('Ticket Service', () => {
             const response = { ticket_id: ticketId, receiptFileName: [`${userId}/${ticketId}/receipt.jpg`] };
 
             getTicket.mockResolvedValue(ticket);
-            appendRecieptName.mockResolvedValue(response);
             S3Client.prototype.send.mockResolvedValue({});
 
             const result = await uploadReceipt(userId, ticketId, file);

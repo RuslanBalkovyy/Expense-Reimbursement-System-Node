@@ -284,38 +284,8 @@ async function getTicketsByStatus(status) {
     }
 }
 
-async function appendRecieptName(ticket) {
-    const updateExpression = `SET receiptFileName = list_append(if_not_exists(receiptFileName, :emptyList), :newReceipt)`;
-    const ExpressionAttributeValues = {
-        ":emptyList": [],
-        ":newReceipt": [ticket.newReceipt]
-    };
-
-    console.log(ticket)
-
-    const command = new UpdateCommand({
-        TableName: tableName,
-        Key: {
-            PK: `USER#${ticket.user_Id}`,
-            SK: `TICKET#${ticket.ticket_Id}`
-        },
-        UpdateExpression: updateExpression,
-        ExpressionAttributeValues,
-        ReturnValues: "ALL_NEW"
-    });
-
-    try {
-        const response = await documentClient.send(command);
-        logger.info(`Successfully updated receiptFileName for ticket: ${ticket.ticketId}`);
-        return response.Attributes;
-    } catch (error) {
-        logger.error(`Error updating receipt FileName for ticket: ${ticket.ticketId}`, error);
-        return null;
-    }
-
-};
 
 
 module.exports = {
-    createUser, getUser, getUserByUsername, createTicket, getTicket, getTicketsByStatus, getTicketsByUserId, getTicketsByUserAndType, updateTicket, updateUser, appendRecieptName
+    createUser, getUser, getUserByUsername, createTicket, getTicket, getTicketsByStatus, getTicketsByUserId, getTicketsByUserAndType, updateTicket, updateUser
 };

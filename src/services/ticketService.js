@@ -1,6 +1,5 @@
 const { createTicket, getTicket, getTicketsByStatus,
-    getTicketsByUserId, getTicketsByUserAndType, updateTicket, getUser,
-    appendRecieptName
+    getTicketsByUserId, getTicketsByUserAndType, updateTicket, getUser
 } = require('../models/reimbursmentModel');
 const { v4: uuidv4 } = require('uuid');
 const { logger } = require('../util/logger');
@@ -35,7 +34,6 @@ async function submitTicket(ticket, user_id) {
             status: "Pending",
             PK: `USER#${user_id}`,
             SK: `TICKET#${ticketId}`,
-            receiptFileNames: [],
             createdAt: new Date().toISOString()
         };
 
@@ -164,7 +162,6 @@ async function viewTicketsAsEmployee(userId, type) {
     };
 };
 
-////FIXME
 async function uploadReceipt(userId, ticketId, file) {
     try {
         const ticket = await getTicket(ticketId);
@@ -186,14 +183,13 @@ async function uploadReceipt(userId, ticketId, file) {
         });
 
         await s3.send(command);
-        const newReciept = { fileName }
         const ticketPayload = {
             ticket_id: ticketId,
-            newReciept: newReciept,
+            reciept_name: fileName,
             user_id: userId
         };
 
-        const response = await appendRecieptName(ticketPayload);
+        const response = await updateTicket(ticketPayload);
         return { success: true, ticket: response }
     } catch (error) {
         logger.error('Error uploading receipt ', error);
@@ -205,36 +201,28 @@ async function uploadReceipt(userId, ticketId, file) {
 };
 
 
-
 async function loadTicketsWithSignedUrls(tickets) {
     try {
-
         const signedTickets = await Promise.all(tickets.map(async (ticket) => {
-            if (Array.isArray(ticket.receiptFileName)) {
-                ticket.receiptFileName = await Promise.all(ticket.receiptFileName.map(async (file) => {
-                    if (file && file.fileName) {
-                        const signedUrl = await getSignedUrl(
-                            s3,
-                            new GetObjectCommand({
-                                Bucket: BUCKET_NAME,
-                                Key: file.fileName
-                            }),
-                            { expiresIn: 3600 }
-                        );
-                        return { ...file, signedUrl };
-                    }
-                    return file;
-                }));
+            if (ticket.reciept_name) {
+                const signedUrl = await getSignedUrl(
+                    s3,
+                    new GetObjectCommand({
+                        Bucket: BUCKET_NAME,
+                        Key: ticket.reciept_name
+                    }),
+                    { expiresIn: 3600 }
+                );
+                ticket.reciept_name = signedUrl;
             }
             return ticket;
         }));
 
         return signedTickets;
 
-
     } catch (error) {
         logger.error("Error generating signed URLs for tickets:", error);
-        return { success: false, error: `Error generationg signed URL: ${error} ` };
+        return { success: false, error: `Error generating signed URL: ${error}` };
     }
 }
 
