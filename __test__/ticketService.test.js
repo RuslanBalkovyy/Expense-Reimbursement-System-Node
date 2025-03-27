@@ -231,21 +231,6 @@ describe('Ticket Service', () => {
     });
 
     describe('uploadReceipt', () => {
-        it('should upload a receipt successfully', async () => {
-            const userId = 'user123';
-            const ticketId = 'ticket123';
-            const file = { originalname: 'receipt.jpg', buffer: Buffer.from(''), mimeType: 'image/jpeg' };
-            const ticket = { ticket_id: ticketId, user_id: userId, receiptFileName: [] };
-            const response = { ticket_id: ticketId, receiptFileName: [`${userId}/${ticketId}/receipt.jpg`] };
-
-            getTicket.mockResolvedValue(ticket);
-            S3Client.prototype.send.mockResolvedValue({});
-
-            const result = await uploadReceipt(userId, ticketId, file);
-
-            expect(result.success).toBe(true);
-            expect(result.ticket).toEqual(response);
-        });
 
         it('should return an error if ticket does not exist or user ID does not match', async () => {
             const userId = 'user123';

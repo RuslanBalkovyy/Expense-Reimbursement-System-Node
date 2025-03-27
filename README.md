@@ -1,141 +1,187 @@
-# Foundations Project
+# Foundation Revature
 
-This is your first individual project at Revature. You are tasked with creating a ticketing reimbursement system for a company. To have an idea of what is expected of you, watch the following below:
+## Description
 
-This project will require you to use technologies that you may have not come across yet but will in the course of training. Make sure to plan ahead, and have a clear idea of what you need for the project and what you can complete with what you have learnt. Do not leave this project to after you have learnt all the technologies. The required features must be completed and presented during a 5 minute timeslot for presentation of the project and 5 minutes for Q/A. Extension features are available for undertaking once the required features are completed, but they do not contribute to your projects completion.
+Foundation Revature is a ticketing reimbursement system designed to streamline the process of submitting, reviewing, and managing reimbursement requests. This project demonstrates foundational programming concepts, modular design, and integration with cloud services.
 
-## Required Technolgies
+## Table of Contents
 
-- NodeJS
-- DynamoDB
-- AWS SDK
-- ExpressJS
-- Jest
-- Postman
+- [Installation](#installation)
+- [Database Setup](#database-setup)
+- [API Endpoints](#api-endpoints)
+- [Usage](#usage)
+- [Features](#features)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
 
-## Preliminary Work
+## Installation
 
-### GitHub Repository
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/rbalk/FoundationRevature.git
+   ```
+2. Navigate to the project directory:
+   ```bash
+   cd FoundationRevature
+   ```
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
+4. Create a `.env` file in the root directory and configure the following environment variables:
+   ```env
+   AWS_ACCESS_KEY_ID=your_aws_access_key
+   AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+   AWS_DEFAULT_REGION=your_aws_region
+   S3_BUCKET_NAME=your_s3_bucket_name
+   SECRET_KEY=your_jwt_secret_key
+   ```
+5. Start the application:
+   ```bash
+   npm start
+   ```
 
-- Setup personal repository for Foundation Project on GitHub
-- Clone the repository to your computer and initialize it
-- Create your first commit on you computer
-- Complete your first push to the repository on GitHub
+## Database Setup
 
-### Use Case Design
+This project uses AWS DynamoDB as the database. Follow these steps to set up the database:
 
-- Understand what your application is meant to do
-- Review the diagrams
+1. Create a DynamoDB table named `ReimbursmentTable` with the following attributes:
+   - **Partition Key (PK):** String
+   - **Sort Key (SK):** String
+2. Add a Global Secondary Index (GSI) for querying by username:
+   - **Index Name:** `UsernameIndex`
+   - **Partition Key:** `username`
+3. Ensure your AWS credentials have the necessary permissions to access DynamoDB and S3.
 
-![Activity Diagram](images/Activity-Diagram.png)
-![State Chart Diagram](images/State-Chart-Diagram.png)
-![Use Case Diagram](images/Use-Case-Diagram.png)
+## API Endpoints
 
-### Glossary of Terms
+### User Endpoints
 
-#### Feature
+- **POST /users/register**  
+  Register a new user.  
+  **Request Body:**
 
-A feature is a unit of functionality of a software system that satisfies a requirement, represents a design decision, and provides a potential configuration option.
+  ```json
+  {
+    "username": "string",
+    "password": "string"
+  }
+  ```
 
-#### User Story
+- **POST /users/login**  
+  Authenticate a user and return a JWT token.  
+  **Request Body:**
 
-A user story is an informal, general explanation of a software feature written from the perspective of the end user or customer. The purpose of a user story is to articulate how a piece of work will deliver a particular value back to the customer.
+  ```json
+  {
+    "username": "string",
+    "password": "string"
+  }
+  ```
 
-#### MVP
+- **GET /users/account**  
+  Retrieve the authenticated user's account details.  
+  **Headers:**  
+  `Authorization: Bearer <token>`
 
-Minimum Viable Product - a version of a product with just enough features to be usable by early customers who can then provide feedback for future product development.
+- **PUT /users/account**  
+  Update the authenticated user's account details.  
+  **Headers:**  
+  `Authorization: Bearer <token>`  
+  **Request Body:**
 
-#### Stretch
+  ```json
+  {
+    "name": "string",
+    "address": {
+      "street": "string",
+      "city": "string",
+      "state": "string",
+      "zip": "string"
+    }
+  }
+  ```
 
-Stretch Goal - an optional extension feature beyond the minimum viable product requirements.
+- **POST /users/avatar**  
+  Upload a profile picture for the authenticated user.  
+  **Headers:**  
+  `Authorization: Bearer <token>`  
+  **Form Data:**  
+  `image: <file>`
 
-#### Reimbursement
+- **PATCH /users/:user_id**  
+  Change a user's role (Manager only).  
+  **Headers:**  
+  `Authorization: Bearer <token>`  
+  **Request Body:**
+  ```json
+  {
+     "role": "Employee" | "Manager"
+  }
+  ```
 
-Reimbursement is compensation paid by an organization for out-of-pocket expenses incurred or over-payment made by an employee, customer, or another party.
+### Ticket Endpoints
 
-#### Ticketing System
+- **POST /tickets**  
+  Submit a new ticket.  
+  **Headers:**  
+  `Authorization: Bearer <token>`  
+  **Request Body:**
 
-A ticketing system is a software program that a support team uses to manage, process, and maintain a list (or lists) of reimbursement requests.
+  ```json
+  {
+     "amount": "number",
+     "description": "string",
+     "type": "Travel" | "Lodging" | "Food" | "Other"
+  }
+  ```
 
-## Required Features
+- **GET /tickets/history**  
+  View the authenticated user's ticket history.  
+  **Headers:**  
+  `Authorization: Bearer <token>`  
+  **Query Parameters:**  
+  `type: Travel | Lodging | Food | Other` (optional)
 
-### Login / Register Feature
+- **GET /tickets/pending**  
+  View all pending tickets (Manager only).  
+  **Headers:**  
+  `Authorization: Bearer <token>`
 
-The login and register feature is meant to give you preliminary experience handling authentication within an application. These features allow you to ensure you can track or maintain who can connect to your application.
-User Stories
-As an Employee or Manager, I should be able to log into the application.
+- **PATCH /tickets/:ticketId**  
+  Approve or deny a ticket (Manager only).  
+  **Headers:**  
+  `Authorization: Bearer <token>`  
+  **Request Body:**
 
-Ability to register a new account
+  ```json
+  {
+     "action": "Approved" | "Denied"
+  }
+  ```
 
-- Must ensure the username is not already registered
-- Default employee role
-- Should register with at least a username and password
+- **POST /tickets/:ticketId/receipts**  
+  Upload a receipt for a ticket.  
+  **Headers:**  
+  `Authorization: Bearer <token>`  
+  **Form Data:**  
+  `image: <file>`
 
-### Submit Ticket Feature
+## Usage
 
-The submit ticket feature is meant to guide you through input acceptance, validation, and error handling. The ability to submit a reimbursement request ticket is the core functionality of this application.
-User Stories
-Employees can submit a new reimbursement ticket
+1. Start the application:
+   ```bash
+   npm start
+   ```
+2. Use tools like Postman or cURL to interact with the API endpoints.
+3. Authenticate using the `/users/login` endpoint to obtain a JWT token.
+4. Use the token in the `Authorization` header for protected routes.
 
-- Must have an amount
-- Must have a description
-- Should have a default status of Pending
+## Features
 
-### Ticketing System Feature
-
-The ticketing system feature is meant to act as the primary interface for internal managers. Managers will use this interface to process the pending reimbursement request tickets and either approve or deny these requests.
-User Story
-Managers can process tickets submitted by employees
-
-- Tickets can be Approved or Denied
-- Tickets cannot change status after processing
-- Pending tickets should be added to a queue or list that managers can see
-- Tickets should be removed from the list, or queue, once processed (approved/denied) by a manager
-
-### View Previous Tickets Feature
-
-The view previous tickets feature is meant for employees to see their request submission history. Employees will leverage this to see outstanding pending tickets along with tickets that have been processed by managers.
-User Story
-
-- As an Employee, I should be able to view all previous reimbursement ticket submissions.
-- Previous tickets should also show the details of submission.
-
-## Extension Features
-
-### Frontend
-
-User Story
-As an Employee or Manager, I can access the application using a frontend website.
-
-- Using HTML, CSS, and JavaScript, create a frontend to interact with your API.
-
-### Reimbursement Types Feature
-
-User Story
-Employees can add Reimbursement Types
-
-- Travel, Lodging, Food, Other
-- Employees can view previous requests filtered by type
-
-### Change Roles Feature
-
-User Story
-Managers can change other users’ roles
-
-- Employee to Manager or back to Employee
-
-### Upload Receipts Feature
-
-User Story
-Employees can add images of receipts to their reimbursement requests
-
-- Upload and store images (in SQL or cloud storage)
-
-### User Accounts Feature
-
-User Story
-User Profile/Account
-
-- Track additional user information (name, address, etc.)
-- Users can edit their account
-- Users can add a profile picture
+- User authentication with JWT.
+- Role-based access control (Employee and Manager).
+- Ticket submission, approval, and history tracking.
+- Receipt upload with AWS S3 integration.
+- Modular and scalable codebase.
