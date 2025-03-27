@@ -1,4 +1,4 @@
-# Foundation Revature
+# Expense Reimbursement System (ERS) - Node
 
 ## Description
 
